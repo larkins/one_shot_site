@@ -49,15 +49,6 @@ zone = client.create_cloudflare_zone("mynewsite.com")
 client.add_dns_record("mynewsite.com", "A", "@", "192.168.1.1")
 ```
 
-## Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `one_shot.py` | Register a domain in one shot |
-| `check_balance.py` | Check account balance |
-| `request_refund.py` | Request refund to wallet |
-| `generate_wallet.py` | Create new Ethereum wallet |
-
 ## Documentation
 
 - `AGENTS.md` - Full API documentation and examples
