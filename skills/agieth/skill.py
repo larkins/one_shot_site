@@ -77,6 +77,14 @@ class AgiethClient:
         resp = requests.post(url, headers=self._headers(), json=data, params=params, timeout=30)
         return resp.json()
     
+    def _post_form(self, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
+        """Make POST request with form-encoded data."""
+        url = f"{self.base_url}{endpoint}"
+        headers = self._headers()
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+        resp = requests.post(url, headers=headers, data=data, params=params, timeout=30)
+        return resp.json()
+    
     def _delete(self, endpoint: str, params: Dict = None) -> Dict:
         """Make DELETE request."""
         url = f"{self.base_url}{endpoint}"
@@ -233,12 +241,12 @@ class AgiethClient:
         Returns:
             Dict with confirmation status
         """
-        params = {
+        data = {
             "tx_hash": tx_hash,
             "currency": currency,
-            "api_key": self.api_key,
         }
-        return self._post(f"/api/v1/quotes/{quote_id}/confirm", params=params)
+        params = {"api_key": self.api_key}
+        return self._post_form(f"/api/v1/quotes/{quote_id}/confirm", data=data, params=params)
     
     def register_domain(self, quote_id: str) -> Dict:
         """Register a domain after payment is confirmed.
@@ -249,8 +257,8 @@ class AgiethClient:
         Returns:
             Dict with registration status
         """
-        params = {"authorization": self.api_key}
-        return self._post(f"/api/v1/quotes/{quote_id}/register", params=params)
+        params = {"api_key": self.api_key}
+        return self._post_form(f"/api/v1/quotes/{quote_id}/register", params=params)
     
     # ========== DNS Management ==========
     
