@@ -4,9 +4,9 @@ Single-shot domain registration using agieth.ai API.
 
 ## What This Does
 
-1. Register domains via agieth.ai API
-2. Use Cloudflare for DNS (FREE)
-3. Single wallet architecture - no gas fee hassles
+1. Register domain 
+2. Modify registrar DNS
+3. Modify Cloudflare Settings
 4. Credit system for failed registrations
 
 ## Quick Start
