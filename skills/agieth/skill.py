@@ -340,6 +340,74 @@ class AgiethClient:
         params = {"api_key": self.api_key}
         return self._get("/api/v1/cloudflare/zones", params)
     
+    # ========== Cloudflare Tunnel Hosting ==========
+    
+    def create_tunnel(self, domain: str, local_port: int = 3000) -> Dict:
+        """Create a Cloudflare Tunnel for protected hosting.
+        
+        Allows hosting without a public IP or port forwarding.
+        The domain must already be registered and in Cloudflare.
+        
+        Args:
+            domain: Domain name (must be registered via agieth)
+            local_port: Local port to tunnel (default: 3000)
+            
+        Returns:
+            Dict with:
+                - tunnel_id: Cloudflare tunnel ID
+                - tunnel_token: Token for cloudflared tunnel run
+                - instructions: Setup instructions
+                
+        Example:
+            >>> result = client.create_tunnel("myapp.com", 3000)
+            >>> print(result["tunnel_token"])
+            >>> # Run: cloudflared tunnel run --token <tunnel_token>
+        """
+        data = {
+            "domain": domain,
+            "local_port": local_port,
+        }
+        params = {"api_key": self.api_key}
+        return self._post("/api/v1/hosting/tunnel", data=data, params=params)
+    
+    def get_tunnel_token(self, domain: str) -> Dict:
+        """Get tunnel token for an existing domain.
+        
+        If tunnel doesn't exist, creates one.
+        
+        Args:
+            domain: Domain name
+            
+        Returns:
+            Dict with tunnel_token and setup instructions
+        """
+        params = {"api_key": self.api_key}
+        return self._get(f"/api/v1/hosting/tunnel/{domain}/token", params)
+    
+    def get_hosting_status(self, domain: str) -> Dict:
+        """Get protected hosting status for a domain.
+        
+        Args:
+            domain: Domain name
+            
+        Returns:
+            Dict with hosting status and details
+        """
+        params = {"api_key": self.api_key}
+        return self._get(f"/api/v1/hosting/status/{domain}", params)
+    
+    def cancel_hosting(self, domain: str) -> Dict:
+        """Cancel protected hosting for a domain.
+        
+        Args:
+            domain: Domain name
+            
+        Returns:
+            Dict with cancellation status
+        """
+        params = {"api_key": self.api_key}
+        return self._delete(f"/api/v1/hosting/{domain}", params)
+    
     # ========== Balance & Credits ==========
     
     def get_balance(self) -> Dict:

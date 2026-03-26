@@ -2,6 +2,14 @@
 
 Quick start for AI agents using agieth.ai domain registration API.
 
+## Documentation
+
+| File | Purpose |
+|------|---------|
+| **README.md** | Project overview and setup instructions |
+| **PAYMENT_FLOW.md** | Detailed payment and registration flow |
+| **AGENTS.md** | This file - AI agent quick reference |
+
 ## Step 0: Get an API Key
 
 Before using the API, you need to generate an API key at agieth.ai.
@@ -133,6 +141,140 @@ client.create_page_rule(
 | `/api/v1/cloudflare/zones` | Create Cloudflare zone |
 | `/api/v1/cloudflare/zones/{id}/dns` | DNS record management |
 | `/api/v1/cloudflare/zones/{id}/pagerules` | Page rules |
+
+## Optional: Static Site Hosting
+
+After registering a domain, you have two hosting options:
+
+### Option A: Self-Hosted with Caddy
+
+Use when you have a public IP and port forwarding access.
+
+**Files:**
+```
+setup/
+├── caddy_install.sh   # Caddy installer
+└── CADDY_README.md    # Documentation
+
+www/
+├── index.html         # Template
+└── style.css          # Stylesheet
+```
+
+**Install:**
+```bash
+cd ~/git/one_shot_site/setup
+sudo ./caddy_install.sh yourdomain.com
+```
+
+**Features:**
+- HTTPS auto-provision (Let's Encrypt)
+- Security headers included
+- Static file serving
+- Requires public IP and open ports 80/443
+
+### Option B: Cloudflare Tunnel (via agieth.ai)
+
+No Cloudflare account needed - tunnel is created in agieth's Cloudflare.
+
+**Files:**
+```
+setup/
+├── cloudflare_tunnel_install.py   # Python script (calls skill)
+├── cloudflare_tunnel_install.sh   # Shell wrapper
+└── CLOUDFLARE_TUNNEL_SETUP.md     # Documentation
+```
+
+**Install:**
+```bash
+export AGIETH_API_KEY="agieth_xxx"
+cd ~/git/one_shot_site/setup
+python cloudflare_tunnel_install.py yourdomain.com 3000
+```
+
+**Or use the skill directly:**
+```python
+client = AgiethClient()
+result = client.create_tunnel("yourdomain.com", local_port=3000)
+token = result["tunnel_token"]  # Run: cloudflared tunnel run --token <token>
+```
+
+**Features:**
+- No Cloudflare account required (uses agieth's account)
+- No public IP required
+- No port forwarding needed
+- DDoS protection included
+- Origin IP hidden
+- Auto SSL via Cloudflare
+- Domain must be registered via agieth
+
+**Comparison:**
+
+| Feature | Caddy | Cloudflare Tunnel |
+|---------|-------|-------------------|
+| Public IP required | Yes | No |
+| Port forwarding | Yes | No |
+| DDoS protection | No | Yes |
+| Hide origin IP | No | Yes |
+| Free tier | Yes | Yes |
+
+### Security Headers (Caddy Only)
+
+| Header | Value |
+|--------|-------|
+| X-Frame-Options | DENY |
+| X-Content-Type-Options | nosniff |
+| X-XSS-Protection | 1; mode=block |
+| Content-Security-Policy | default-src 'self' |
+| Strict-Transport-Security | max-age=31536000 |
+
+### After Install
+
+```bash
+# Edit your site
+nano /var/www/yourdomain.com/index.html
+
+# Reload Caddy after changes
+sudo systemctl reload caddy
+```
+
+## Optional: Setup Files Reference
+
+The `setup/` directory contains helper scripts for deployment:
+
+| File | Purpose | Requirements |
+|------|---------|--------------|
+| `caddy_install.sh` | Self-hosted HTTPS via Caddy | Public IP, ports 80/443 |
+| `cloudflare_tunnel_install.sh` | Shell wrapper for tunnel | agieth API key |
+| `cloudflare_tunnel_install.py` | Python tunnel installer (calls skill) | agieth API key |
+| `CADDY_README.md` | Caddy documentation | - |
+| `CLOUDFLARE_TUNNEL_SETUP.md` | Tunnel documentation | - |
+
+**Usage Examples:**
+
+```bash
+# Self-hosted (Caddy) - requires public IP
+sudo ./setup/caddy_install.sh example.com
+
+# Tunnel (via agieth) - no public IP needed
+export AGIETH_API_KEY="agieth_xxx"
+python setup/cloudflare_tunnel_install.py example.com 3000
+```
+
+**Python Skill (Alternative):**
+
+```python
+from skills.agieth.skill import AgiethClient
+
+client = AgiethClient(api_key="agieth_xxx")
+
+# Create tunnel
+result = client.create_tunnel("example.com", local_port=3000)
+token = result["tunnel_token"]
+
+# Use token
+# cloudflared tunnel run --token <token>
+```
 
 ## Pricing (All Cloudflare services FREE)
 
