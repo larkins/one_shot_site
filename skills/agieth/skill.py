@@ -7,7 +7,6 @@ Provides access to agieth.ai domain registration and management API.
 import os
 import json
 import requests
-from pathlib import Path
 from typing import Optional, Dict, List
 
 # Skill metadata
@@ -18,36 +17,36 @@ SKILL_VERSION = "1.0.0"
 class AgiethClient:
     """Client for agieth.ai API.
     
-    Automatically loads credentials from ~/got/agieth-single-shot/.env
+    Requires AGIETH_API_KEY and AGIETH_EMAIL credentials.
+    Set via environment variables or pass directly to constructor.
     """
     
-    def __init__(self, api_key: str = None, base_url: str = None):
+    def __init__(self, api_key: str = None, email: str = None, base_url: str = None):
         """Initialize client.
         
+        Credentials are loaded in this order:
+        1. Arguments passed to constructor
+        2. Environment variables (AGIETH_API_KEY, AGIETH_EMAIL, AGIETH_BASE_URL)
+        
         Args:
-            api_key: API key (loads from .env if not provided)
+            api_key: API key (required if not in env)
+            email: Email address (required if not in env)
             base_url: API base URL (default: https://api.agieth.ai)
+        
+        Raises:
+            ValueError: If API key is not provided and not in environment
         """
         self.base_url = base_url or os.getenv("AGIETH_BASE_URL", "https://api.agieth.ai")
-        self.api_key = api_key or self._load_api_key()
-        self.email = os.getenv("AGIETH_EMAIL", "")
+        self.api_key = api_key or os.getenv("AGIETH_API_KEY", "")
+        self.email = email or os.getenv("AGIETH_EMAIL", "")
         
-    def _load_api_key(self) -> str:
-        """Load API key from .env file."""
-        env_path = Path.home() / "got" / "agieth-single-shot" / ".env"
-        
-        if env_path.exists():
-            with open(env_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("AGIETH_API_KEY="):
-                        key = line.split("=", 1)[1].strip()
-                        # Validate key format
-                        if key and key.startswith("agieth_"):
-                            return key
-        
-        # Fall back to environment variable
-        return os.getenv("AGIETH_API_KEY", "")
+        # Validate API key is present
+        if not self.api_key:
+            raise ValueError(
+                "AGIETH_API_KEY is required. "
+                "Set environment variable or pass api_key parameter. "
+                "Get your API key at https://api.agieth.ai/api/v1/keys/create"
+            )
     
     def create_api_key(self) -> dict:
         """Create a new API key via the API.
