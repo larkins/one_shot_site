@@ -1,13 +1,19 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS and Cloudflare settings via agieth.ai Agent Bridge
-homepage: https://agieth.ai
-required_env_vars:
-  - AGIETH_API_KEY
-  - AGIETH_EMAIL
-optional_env_vars:
-  - AGIETH_BASE_URL
-primary_credential: AGIETH_API_KEY
+version: 1.0.1
+metadata:
+  openclaw:
+    requires:
+      env:
+        - AGIETH_API_KEY
+        - AGIETH_EMAIL
+        - AGIETH_BASE_URL 
+      bins:
+        - curl
+    primaryEnv: AGIETH_API_KEY
+    emoji: "\u2705"
+    homepage: https://agieth.ai
 ---
 
 # agieth.ai API Skill
