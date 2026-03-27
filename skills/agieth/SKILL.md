@@ -1,3 +1,9 @@
+---
+name: agieth
+description: Purchase domains, manage DNS and cloudflare settings via agieth.ai Agent Bridge
+homepage: https://agieth.ai
+---
+
 # agieth.ai API Skill
 
 Interact with agieth.ai domain registration and management API.
