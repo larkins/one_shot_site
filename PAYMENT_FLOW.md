@@ -28,7 +28,7 @@ Response:
 
 ### 2. Email Verification
 ```
-GET /api/v1/keys/verify?code=xxxxx
+GET /api/v1/keys/verify?token={verification_token}&email={email}
 
 Response:
 {

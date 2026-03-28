@@ -40,6 +40,8 @@ curl "https://api.agieth.ai/api/v1/keys/verify?token=YOUR_VERIFICATION_CODE&emai
 # Response: {"verified": true, "message": "API key verified successfully"}
 ```
 
+**Note:** Both token AND email are required. API key is sent via Authorization header, not query params.
+
 **Note:** Both token AND email are required for verification. This prevents brute force attacks.
 
 ### 0.4 Store Your API Key
@@ -99,12 +101,12 @@ if status["status"] == "paid":
     print("Domain registered!")
 ```
 
-### 3. Check Balance & Credits
+### 3. Check Balance
 
 ```python
 balance = client.get_balance()
 print(f"Balance: ${balance['balance_usd_cents']/100}")
-print(f"Credits: ${balance['credit_usd_cents']/100}")
+print(f"Credits: ${balance.get('credit_usd_cents', 0)/100}")
 ```
 
 ### 4. Cloudflare Integration (FREE)
@@ -114,7 +116,7 @@ print(f"Credits: ${balance['credit_usd_cents']/100}")
 zone = client.create_cloudflare_zone("mynewsite.com")
 nameservers = zone["name_servers"]
 
-# Add DNS records
+# Add DNS records via registrar (Namecheap)
 client.add_dns_record(
     domain="mynewsite.com",
     record_type="A",
@@ -122,7 +124,7 @@ client.add_dns_record(
     value="192.168.1.1"
 )
 
-# Add www redirect
+# Add www redirect page rule
 client.create_page_rule(
     zone_id=zone["zone_id"],
     target_url="www.mynewsite.com/*",
@@ -234,9 +236,11 @@ token = result["tunnel_token"]  # Run: cloudflared tunnel run --token <token>
 
 **RPC failover behavior:** The skill and backend use primary/fallback Ethereum RPC failover. If a payment seems stuck, the system may have retried on the fallback endpoint. Check `rpc_used` and `rpc_failover_used` in response fields.
 
-**Email send endpoint:** The `/api/v1/emails/send` endpoint accepts parameters as query params: `?api_key=...&to=...&subject=...&body=...`.
+**Auth:** API key is sent via `Authorization: Bearer` header only (no query params).
 
 **Owned domains listing:** `GET /domains` (no prefix) returns user-owned domains from the agieth DB. This is the default mode. Use `provider=namesilo|godaddy` to get registrar-account listing instead.
+
+**How payments work:** `send_payment` is optional. You can use any wallet to transfer ETH to the `payment_address` returned in the quote — no private key required by the skill.
 
 ### After Install
 
