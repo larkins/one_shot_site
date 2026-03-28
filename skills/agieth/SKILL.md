@@ -190,7 +190,7 @@ The tunnel feature uses **agieth.ai's Cloudflare account** — not yours. Agieth
 - API keys should be treated as secrets
 - Only provide keys with minimum required permissions
 - **Always verify the `payment_address` returned by the API before sending crypto** — the skill surfaces the address from the server response
-- The agieth API accepts `api_key` as a query parameter — be aware that query strings may be logged by proxies or CDN edges; use a scoped/restricted API key
+- The skill sends the API key via the `Authorization: Bearer` HTTP header exclusively (no query parameters)
 - This skill makes network requests to:
   - `https://api.agieth.ai` (main API)
   - `https://ethereum.publicnode.com` and `https://eth.drpc.org` (Ethereum blockchain RPC — for balance checks and transaction broadcasting)
