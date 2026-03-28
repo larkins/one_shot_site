@@ -1,15 +1,14 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS and Cloudflare settings via agieth.ai Agent Bridge
-version: 1.0.3
+version: 1.0.11
 metadata:
   openclaw:
     requires:
       env:
         - AGIETH_API_KEY
         - AGIETH_EMAIL
-      bins:
-        - cloudflared
+      bins: []
     primaryEnv: AGIETH_API_KEY
     emoji: "\u2705"
     homepage: https://agieth.ai
@@ -33,20 +32,24 @@ This skill requires an agieth.ai API key and email address:
 |----------|----------|-------------|
 | `AGIETH_API_KEY` | Yes | Your agieth.ai API key |
 | `AGIETH_EMAIL` | Yes | Email associated with your API key |
-| `cloudflared` | Yes (for tunnels) | Binary for Cloudflare Tunnel hosting |
+| `ETH_WALLET_PRIVATE_KEY` | Only for payments | Ethereum private key — only needed for `send_payment`. You can also use any external wallet instead. |
+| `ETH_RPC_PRIMARY` | No | Ethereum RPC endpoint — defaults to `https://ethereum.publicnode.com` |
+| `ETH_RPC_FALLBACK` | No | Fallback RPC — defaults to `https://eth.drpc.org` |
+| `cloudflared` | No | Only needed for Cloudflare Tunnel hosting. If you have a static IP, you can point DNS A records at it instead — no tunnel needed. |
 
 **API base URL** is hardcoded to `https://api.agieth.ai` — no configuration needed.
 
 ## How Payments Work
 
-Domain registration payments are made **on the Ethereum blockchain** — the agieth API generates a unique payment address and ETH amount for each quote. You provide your own wallet private key when calling `send_payment`; the skill signs and broadcasts the transaction directly from your wallet — agieth.ai never holds or custody your funds.
+Domain registration payments are made **on the Ethereum blockchain** — the agieth API generates a unique payment address and ETH amount for each quote. You can pay using **any Ethereum wallet** (MetaMask, Rabby, hardware wallet, etc.) by sending the exact ETH amount to the address returned by the API — no private key needs to be provided to this skill.
+
+The `send_payment` method is included as a convenience for fully-automated workflows. If you prefer manual payment or a different wallet, simply use the `payment_address` and `price_eth` from the quote response in your own wallet.
 
 **Summary:**
 - Payments are ETH transfers on the Ethereum blockchain
-- You provide your own wallet private key at runtime — the skill signs locally
 - No tokens, no smart contracts, no third-party custody of funds
 - Payment address and amount are unique per quote and expire with the quote
-- External RPC endpoints used: `https://ethereum.publicnode.com` and `https://eth.drpc.org` (for ETH balance checks and transaction broadcasting)
+- External RPC endpoints used: `https://ethereum.publicnode.com` and `https://eth.drpc.org`
 
 ## Installation
 
@@ -56,6 +59,8 @@ Domain registration payments are made **on the Ethereum blockchain** — the agi
 ```bash
 export AGIETH_API_KEY="agieth_your_key_here"
 export AGIETH_EMAIL="your_email@example.com"
+# Only needed for automated payments (optional — see How Payments Work above):
+export ETH_WALLET_PRIVATE_KEY="0x..."
 ```
 
 Or create a `.env` file in your workspace:
@@ -63,6 +68,11 @@ Or create a `.env` file in your workspace:
 ```
 AGIETH_API_KEY=agieth_your_key_here
 AGIETH_EMAIL=your_email@example.com
+# Only needed for automated payments:
+ETH_WALLET_PRIVATE_KEY=0x...
+# Optional RPC overrides:
+ETH_RPC_PRIMARY=https://your-preferred-rpc
+ETH_RPC_FALLBACK=https://your-fallback-rpc
 ```
 
 ## Quick Start
@@ -76,7 +86,7 @@ client = AgiethClient()
 # Or pass credentials directly
 client = AgiethClient(
     api_key="agieth_your_key_here",
-    base_url="https://api.agieth.ai"
+    email="your_email@example.com"
 )
 
 # Check domain availability
@@ -152,7 +162,7 @@ client.create_page_rule(
 )
 ```
 
-### Cloudflare Tunnel Hosting
+### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 
 ```python
 # Create tunnel (no public IP needed)
@@ -161,6 +171,8 @@ result = client.create_tunnel("example.com", local_port=3000)
 
 # Run: cloudflared tunnel run --token <tunnel_token>
 ```
+
+**Alternative:** If you have a static IP, you can skip cloudflared entirely. Just add an A record pointing to your static IP instead.
 
 ### Balance & Credits
 
@@ -193,9 +205,8 @@ The tunnel feature uses **agieth.ai's Cloudflare account** — not yours. Agieth
 - The skill sends the API key via the `Authorization: Bearer` HTTP header exclusively (no query parameters)
 - This skill makes network requests to:
   - `https://api.agieth.ai` (main API)
-  - `https://ethereum.publicnode.com` and `https://eth.drpc.org` (Ethereum blockchain RPC — for balance checks and transaction broadcasting)
-  - `https://cloudflare.com` (via cloudflared tunnel, when tunnel feature is used)
-- cloudflared is required only if you use tunnel hosting; install it from the [official Cloudflare source](https://developers.cloudflare.com/cloudflare-one/install-and-input/installation/)
+  - `https://ethereum.publicnode.com` and `https://eth.drpc.org` (Ethereum blockchain RPC — for ETH balance checks and transaction broadcasting)
+  - `https://cloudflare.com` (via cloudflared tunnel, when tunnel feature is used — optional)
 
 ## API Documentation
 
