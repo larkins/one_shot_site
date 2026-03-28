@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS and Cloudflare settings via agieth.ai Agent Bridge
-version: 1.0.2
+version: 1.0.3
 metadata:
   openclaw:
     requires:
@@ -13,6 +13,12 @@ metadata:
     primaryEnv: AGIETH_API_KEY
     emoji: "\u2705"
     homepage: https://agieth.ai
+    tags:
+      - ethereum
+      - cryptocurrency
+      - domain-registration
+      - cloudflare
+      - dns
 ---
 
 # agieth.ai API Skill
@@ -30,6 +36,17 @@ This skill requires an agieth.ai API key and email address:
 | `cloudflared` | Yes (for tunnels) | Binary for Cloudflare Tunnel hosting |
 
 **API base URL** is hardcoded to `https://api.agieth.ai` — no configuration needed.
+
+## How Payments Work
+
+Domain registration payments are made **on the Ethereum blockchain** — the agieth API generates a unique payment address and ETH amount for each quote. You provide your own wallet private key when calling `send_payment`; the skill signs and broadcasts the transaction directly from your wallet — agieth.ai never holds or custody your funds.
+
+**Summary:**
+- Payments are ETH transfers on the Ethereum blockchain
+- You provide your own wallet private key at runtime — the skill signs locally
+- No tokens, no smart contracts, no third-party custody of funds
+- Payment address and amount are unique per quote and expire with the quote
+- External RPC endpoints used: `https://ethereum.publicnode.com` and `https://eth.drpc.org` (for ETH balance checks and transaction broadcasting)
 
 ## Installation
 
@@ -173,7 +190,11 @@ The tunnel feature uses **agieth.ai's Cloudflare account** — not yours. Agieth
 - API keys should be treated as secrets
 - Only provide keys with minimum required permissions
 - **Always verify the `payment_address` returned by the API before sending crypto** — the skill surfaces the address from the server response
-- This skill makes network requests to `https://api.agieth.ai` only
+- The agieth API accepts `api_key` as a query parameter — be aware that query strings may be logged by proxies or CDN edges; use a scoped/restricted API key
+- This skill makes network requests to:
+  - `https://api.agieth.ai` (main API)
+  - `https://ethereum.publicnode.com` and `https://eth.drpc.org` (Ethereum blockchain RPC — for balance checks and transaction broadcasting)
+  - `https://cloudflare.com` (via cloudflared tunnel, when tunnel feature is used)
 - cloudflared is required only if you use tunnel hosting; install it from the [official Cloudflare source](https://developers.cloudflare.com/cloudflare-one/install-and-input/installation/)
 
 ## API Documentation

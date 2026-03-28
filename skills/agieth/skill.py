@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.2"
+SKILL_VERSION = "1.0.4"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
