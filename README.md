@@ -51,10 +51,26 @@ client.add_dns_record("mynewsite.com", "A", "@", "192.168.1.1")
 
 ## Documentation
 
-- `AGENTS.md` - Full API documentation and examples
+- `AGENTS.md` - End-user quick reference for one-shot usage
 - `skills/agieth/SKILL.md` - Skill method reference
-- `PAYMENT_FLOW.md` - Payment flow details
-- `TROUBLESHOOTING.md` - Common issues and solutions
+- `skills/agieth/TROUBLESHOOTING.md` - RPC failover + payment troubleshooting
+- `PAYMENT_FLOW.md` - Payment and registration flow details
+- `TROUBLESHOOTING.md` - Common repo-level issues and solutions
+
+## 2026-03-28 Status
+
+Live flow has been re-validated after ownership/RPC/DNS fixes:
+
+- quote creation
+- ETH payment + confirmation
+- domain registration
+- Cloudflare zone + page rule
+- Namecheap DNS add/list
+- `/domains` owned listing
+- `/api/v1/cloudflare/services`
+- email send + inbox receipt verification
+
+Reference domain from latest validation: `mllivev1g2a1x5.com`.
 
 ## License
 

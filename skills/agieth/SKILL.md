@@ -1,16 +1,15 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS and Cloudflare settings via agieth.ai Agent Bridge
-version: 1.0.1
+version: 1.0.2
 metadata:
   openclaw:
     requires:
       env:
         - AGIETH_API_KEY
         - AGIETH_EMAIL
-        - AGIETH_BASE_URL 
       bins:
-        - curl
+        - cloudflared
     primaryEnv: AGIETH_API_KEY
     emoji: "\u2705"
     homepage: https://agieth.ai
@@ -28,7 +27,9 @@ This skill requires an agieth.ai API key and email address:
 |----------|----------|-------------|
 | `AGIETH_API_KEY` | Yes | Your agieth.ai API key |
 | `AGIETH_EMAIL` | Yes | Email associated with your API key |
-| `AGIETH_BASE_URL` | No | API base URL (default: https://api.agieth.ai) |
+| `cloudflared` | Yes (for tunnels) | Binary for Cloudflare Tunnel hosting |
+
+**API base URL** is hardcoded to `https://api.agieth.ai` — no configuration needed.
 
 ## Installation
 
@@ -45,7 +46,6 @@ Or create a `.env` file in your workspace:
 ```
 AGIETH_API_KEY=agieth_your_key_here
 AGIETH_EMAIL=your_email@example.com
-AGIETH_BASE_URL=https://api.agieth.ai
 ```
 
 ## Quick Start
@@ -164,12 +164,17 @@ credits = client.get_credits()
 | Cloudflare Tunnel | FREE |
 | SSL Certificates | FREE |
 
+## Cloudflare Authorization
+
+The tunnel feature uses **agieth.ai's Cloudflare account** — not yours. Agieth creates the tunnel, gives you a token, and Cloudflare sees all traffic as agieth's. You do NOT need your own Cloudflare API token for this skill to work.
+
 ## Security Notes
 
 - API keys should be treated as secrets
 - Only provide keys with minimum required permissions
-- Verify payment addresses come from official API responses
-- This skill makes network requests to `api.agieth.ai`
+- **Always verify the `payment_address` returned by the API before sending crypto** — the skill surfaces the address from the server response
+- This skill makes network requests to `https://api.agieth.ai` only
+- cloudflared is required only if you use tunnel hosting; install it from the [official Cloudflare source](https://developers.cloudflare.com/cloudflare-one/install-and-input/installation/)
 
 ## API Documentation
 

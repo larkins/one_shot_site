@@ -11,7 +11,10 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.0"
+SKILL_VERSION = "1.0.2"
+
+# Hardcoded production API base — agieth.ai is the product, no configurable alternative
+DEFAULT_BASE_URL = "https://api.agieth.ai"
 
 
 class AgiethClient:
@@ -21,22 +24,21 @@ class AgiethClient:
     Set via environment variables or pass directly to constructor.
     """
     
-    def __init__(self, api_key: str = None, email: str = None, base_url: str = None):
+    def __init__(self, api_key: str = None, email: str = None):
         """Initialize client.
         
         Credentials are loaded in this order:
         1. Arguments passed to constructor
-        2. Environment variables (AGIETH_API_KEY, AGIETH_EMAIL, AGIETH_BASE_URL)
+        2. Environment variables (AGIETH_API_KEY, AGIETH_EMAIL)
         
         Args:
             api_key: API key (required if not in env)
             email: Email address (required if not in env)
-            base_url: API base URL (default: https://api.agieth.ai)
         
         Raises:
             ValueError: If API key is not provided and not in environment
         """
-        self.base_url = base_url or os.getenv("AGIETH_BASE_URL", "https://api.agieth.ai")
+        self.base_url = DEFAULT_BASE_URL
         self.api_key = api_key or os.getenv("AGIETH_API_KEY", "")
         self.email = email or os.getenv("AGIETH_EMAIL", "")
         
@@ -47,6 +49,12 @@ class AgiethClient:
                 "Set environment variable or pass api_key parameter. "
                 "Get your API key at https://api.agieth.ai/api/v1/keys/create"
             )
+
+        # RPC failover order (primary first, then fallback)
+        self.rpc_endpoints = [
+            os.getenv("ETH_RPC_PRIMARY", "https://ethereum.publicnode.com"),
+            os.getenv("ETH_RPC_FALLBACK", "https://eth.drpc.org"),
+        ]
     
     def create_api_key(self) -> dict:
         """Create a new API key via the API.
@@ -569,49 +577,52 @@ class AgiethClient:
         from web3 import Web3
         from eth_account import Account
         
-        # Connect to Ethereum
-        w3 = Web3(Web3.HTTPProvider("https://ethereum.publicnode.com"))
-        
         # Get private key
         if private_key is None:
             private_key = os.getenv("ETHEREUM_PRIVATE_KEY")
             if not private_key:
                 return {"success": False, "error": "No private key provided"}
-        
+
         account = Account.from_key(private_key)
-        
-        # Build transaction
-        nonce = w3.eth.get_transaction_count(account.address)
-        gas_price = w3.eth.gas_price
-        
-        tx = {
-            "from": account.address,
-            "to": Web3.to_checksum_address(to_address),
-            "value": w3.to_wei(amount_eth, "ether"),
-            "gasPrice": gas_price,
-            "nonce": nonce,
-            "chainId": 1
-        }
-        
-        # Dynamically estimate gas (more reliable than hardcoding)
-        tx["gas"] = w3.eth.estimate_gas(tx)
-        
-        # Sign and send
-        signed = w3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        
-        # Wait for receipt
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        
-        return {
-            "success": receipt.status == 1,
-            "tx_hash": tx_hash.hex(),
-            "from": account.address,
-            "to": to_address,
-            "amount_eth": amount_eth,
-            "gas_used": receipt.gasUsed,
-            "block_number": receipt.blockNumber
-        }
+        last_error = None
+
+        # Try primary RPC first, then fallback on first failure
+        for idx, rpc_url in enumerate(self.rpc_endpoints):
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc_url))
+                nonce = w3.eth.get_transaction_count(account.address, "pending")
+                gas_price = w3.eth.gas_price
+
+                tx = {
+                    "from": account.address,
+                    "to": Web3.to_checksum_address(to_address),
+                    "value": w3.to_wei(amount_eth, "ether"),
+                    "gasPrice": gas_price,
+                    "nonce": nonce,
+                    "chainId": 1
+                }
+
+                tx["gas"] = w3.eth.estimate_gas(tx)
+                signed = w3.eth.account.sign_transaction(tx, private_key)
+                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+
+                return {
+                    "success": receipt.status == 1,
+                    "tx_hash": tx_hash.hex(),
+                    "from": account.address,
+                    "to": to_address,
+                    "amount_eth": amount_eth,
+                    "gas_used": receipt.gasUsed,
+                    "block_number": receipt.blockNumber,
+                    "rpc_used": rpc_url,
+                    "rpc_failover_used": idx > 0,
+                }
+            except Exception as e:
+                last_error = f"{rpc_url}: {e}"
+                continue
+
+        return {"success": False, "error": f"All RPC endpoints failed. Last error: {last_error}"}
     
     def send_erc20(self, token_address: str, to_address: str, amount: float,
                     private_key: str = None, decimals: int = 6) -> Dict:
@@ -630,61 +641,63 @@ class AgiethClient:
         from web3 import Web3
         from eth_account import Account
         
-        w3 = Web3(Web3.HTTPProvider("https://ethereum.publicnode.com"))
-        
         if private_key is None:
             private_key = os.getenv("ETHEREUM_PRIVATE_KEY")
             if not private_key:
                 return {"success": False, "error": "No private key provided"}
-        
+
         account = Account.from_key(private_key)
-        
+        last_error = None
+
         # ERC20 transfer ABI
         erc20_abi = [
             {"constant": False, "inputs": [{"name": "_to", "type": "address"}, 
              {"name": "_value", "type": "uint256"}], "name": "transfer",
              "outputs": [{"name": "", "type": "bool"}], "type": "function"}
         ]
-        
-        token = w3.eth.contract(
-            address=Web3.to_checksum_address(token_address),
-            abi=erc20_abi
-        )
-        
-        # Convert amount to token units
-        amount_wei = int(amount * (10 ** decimals))
-        
-        # Build transaction (without gas - will estimate)
-        nonce = w3.eth.get_transaction_count(account.address)
-        tx = {
-            "from": account.address,
-            "nonce": nonce,
-            "gasPrice": w3.eth.gas_price,
-            "chainId": 1
-        }
-        
-        # Build the contract call
-        contract_tx = token.functions.transfer(
-            Web3.to_checksum_address(to_address),
-            amount_wei
-        ).build_transaction(tx)
-        
-        # Dynamically estimate gas (token transfers need ~50,000-65,000)
-        contract_tx["gas"] = w3.eth.estimate_gas(contract_tx)
-        
-        signed = w3.eth.account.sign_transaction(contract_tx, private_key)
-        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        
-        return {
-            "success": receipt.status == 1,
-            "tx_hash": tx_hash.hex(),
-            "from": account.address,
-            "to": to_address,
-            "amount": amount,
-            "token": token_address
-        }
+
+        for idx, rpc_url in enumerate(self.rpc_endpoints):
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc_url))
+                token = w3.eth.contract(
+                    address=Web3.to_checksum_address(token_address),
+                    abi=erc20_abi
+                )
+
+                amount_wei = int(amount * (10 ** decimals))
+                nonce = w3.eth.get_transaction_count(account.address, "pending")
+                tx = {
+                    "from": account.address,
+                    "nonce": nonce,
+                    "gasPrice": w3.eth.gas_price,
+                    "chainId": 1
+                }
+
+                contract_tx = token.functions.transfer(
+                    Web3.to_checksum_address(to_address),
+                    amount_wei
+                ).build_transaction(tx)
+
+                contract_tx["gas"] = w3.eth.estimate_gas(contract_tx)
+                signed = w3.eth.account.sign_transaction(contract_tx, private_key)
+                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+
+                return {
+                    "success": receipt.status == 1,
+                    "tx_hash": tx_hash.hex(),
+                    "from": account.address,
+                    "to": to_address,
+                    "amount": amount,
+                    "token": token_address,
+                    "rpc_used": rpc_url,
+                    "rpc_failover_used": idx > 0,
+                }
+            except Exception as e:
+                last_error = f"{rpc_url}: {e}"
+                continue
+
+        return {"success": False, "error": f"All RPC endpoints failed. Last error: {last_error}"}
     
     # ========== Manifest ==========
     

@@ -130,6 +130,32 @@ DNS propagation typically takes 5-60 minutes, sometimes up to 48 hours.
 | 429 | Rate limited | Wait a few minutes before retrying |
 | 500 | Server error | Try again, contact support if persists |
 
+## Payment and RPC Issues
+
+### Payment sent but quote still shows "pending"
+
+If your payment was sent on-chain but the quote stays pending:
+
+1. **Wait up to 5 minutes** — blockchain confirmation can take time.
+2. **Check the transaction on Etherscan** using the tx hash from the response.
+3. **RPC failover is automatic** — the skill and backend use primary/fallback RPC endpoints. If the primary RPC had issues, the system retried on the fallback. Response fields `rpc_used` and `rpc_failover_used` indicate which endpoint succeeded.
+4. **If still pending after 30 min**, contact support with your quote ID and tx hash.
+
+### What the payment response fields mean
+
+```python
+{
+  "success": true,
+  "tx_hash": "0x...",          # On-chain transaction hash
+  "rpc_used": "https://eth.drpc.org",  # RPC that handled the tx
+  "rpc_failover_used": true     # True = fallback RPC was used
+}
+```
+
+### "Could not connect to any Ethereum RPC"
+
+This means all configured RPC endpoints failed. The backend has since been updated with reliable primary/fallback endpoints. If you see this, it indicates a temporary network issue — retry after a moment.
+
 ## Getting Help
 
 ### Contact Support

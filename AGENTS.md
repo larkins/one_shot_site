@@ -62,7 +62,7 @@ cp .env.example .env
 from skills.agieth.skill import AgiethClient
 
 # Load credentials from .env
-client = AgiethClient()  # Auto-loads from ~/got/agieth-single-shot/.env
+client = AgiethClient()  # Auto-loads from project .env / environment
 
 # Or specify manually
 client = AgiethClient(api_key="agieth_xxx")
@@ -141,6 +141,8 @@ client.create_page_rule(
 | `/api/v1/cloudflare/zones` | Create Cloudflare zone |
 | `/api/v1/cloudflare/zones/{id}/dns` | DNS record management |
 | `/api/v1/cloudflare/zones/{id}/pagerules` | Page rules |
+| `/domains` | Owned domains for current API key user (default mode) |
+| `/api/v1/cloudflare/services` | Cloudflare/hosting pricing metadata |
 
 ## Optional: Static Site Hosting
 
@@ -227,6 +229,14 @@ token = result["tunnel_token"]  # Run: cloudflared tunnel run --token <token>
 | X-XSS-Protection | 1; mode=block |
 | Content-Security-Policy | default-src 'self' |
 | Strict-Transport-Security | max-age=31536000 |
+
+### 2026-03-28 Troubleshooting Notes
+
+**RPC failover behavior:** The skill and backend use primary/fallback Ethereum RPC failover. If a payment seems stuck, the system may have retried on the fallback endpoint. Check `rpc_used` and `rpc_failover_used` in response fields.
+
+**Email send endpoint:** The `/api/v1/emails/send` endpoint accepts parameters as query params: `?api_key=...&to=...&subject=...&body=...`.
+
+**Owned domains listing:** `GET /domains` (no prefix) returns user-owned domains from the agieth DB. This is the default mode. Use `provider=namesilo|godaddy` to get registrar-account listing instead.
 
 ### After Install
 
