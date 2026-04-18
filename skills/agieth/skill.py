@@ -286,7 +286,7 @@ class AgiethClient:
         if priority is not None:
             params["priority"] = priority
 
-        return self._post(f"/api/v1/domains/{domain}/dns")
+        return self._post(f"/api/v1/domains/{domain}/dns", params=params)
 
     def delete_dns_record(self, domain: str, record_id: str,
                           registrar: str = "namecheap") -> Dict:

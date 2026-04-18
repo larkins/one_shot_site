@@ -57,13 +57,23 @@ from skills.agieth.skill import AgiethClient
 
 client = AgiethClient(api_key="agieth_xxx")
 
-# Create tunnel
+# Create tunnel — returns credentials + token
 result = client.create_tunnel("mysite.com", local_port=3000)
+print(f"Tunnel ID: {result['tunnel_id']}")
 print(f"Token: {result['tunnel_token']}")
+print(f"Credentials: {result['credentials']}")
+# Save credentials to file for cloudflared:
+# {
+#   "AccountTag": "...",
+#   "TunnelID": "...",
+#   "TunnelName": "...",
+#   "TunnelSecret": "..."
+# }
 
-# Get existing tunnel token
+# Get existing tunnel credentials (retrieve anytime)
 result = client.get_tunnel_token("mysite.com")
 print(f"Token: {result['tunnel_token']}")
+print(f"Credentials: {result['credentials']}")
 
 # Check status
 status = client.get_hosting_status("mysite.com")
@@ -72,14 +82,51 @@ print(f"Status: {status['status']}")
 
 ## Running the Tunnel
 
-### Quick Run (Foreground)
+### Method 1: JSON Credentials File (Recommended)
+
+The API returns a `credentials` object containing your tunnel credentials. Save it
+to a JSON file and run cloudflared with that file:
+
+```bash
+# 1. Create credentials directory
+mkdir -p ~/.cloudflared
+
+# 2. Save credentials (from API response)
+cat > ~/.cloudflared/credentials.json << 'EOF'
+{
+  "AccountTag": "ed0d16197ca3bf56246ac7f5df806393",
+  "TunnelID": "your-tunnel-id",
+  "TunnelName": "your-tunnel-name",
+  "TunnelSecret": "your-tunnel-secret"
+}
+EOF
+
+# 3. Run the tunnel
+cloudflared tunnel run --config ~/.cloudflared/credentials.json
+
+# Or save with tunnel-specific filename:
+mv ~/.cloudflared/credentials.json ~/.cloudflared/YOUR-TUNNEL-ID.json
+cloudflared tunnel run --config ~/.cloudflared/YOUR-TUNNEL-ID.json
+```
+
+### Method 2: Tunnel Token
 
 ```bash
 cloudflared tunnel run --token <tunnel_token>
 ```
 
+### Quick Run (Foreground)
+
 ### Run as Service (systemd)
 
+**Using JSON credentials file:**
+```bash
+sudo cloudflared service install ~/.cloudflared/credentials.json
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+**Using token:**
 ```bash
 sudo cloudflared service install <tunnel_token>
 sudo systemctl enable cloudflared
@@ -187,9 +234,33 @@ curl http://localhost:3000/health
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | /api/v1/hosting/tunnel | Create tunnel |
-| GET | /api/v1/hosting/tunnel/{domain}/token | Get tunnel token |
+| POST | /api/v1/hosting/tunnel?domain=X&local_port=N | Create tunnel, returns credentials + token |
+| GET | /api/v1/hosting/tunnel/{domain}/token | Get tunnel token + credentials |
+| DELETE | /api/v1/hosting/tunnel/{domain} | Delete tunnel + DNS + DB record |
 | GET | /api/v1/hosting/status/{domain} | Get hosting status |
+
+### Response: Create Tunnel (POST)
+
+```json
+{
+  "success": true,
+  "domain": "mysite.com",
+  "tunnel_id": "abc123...",
+  "tunnel_token": "eyJh...",
+  "credentials": {
+    "AccountTag": "ed0d16197ca3bf56246ac7f5df806393",
+    "TunnelID": "abc123...",
+    "TunnelName": "customer-11-mysite-com-1234567890",
+    "TunnelSecret": "base64secret..."
+  },
+  "instructions": "..."
+}
+```
+
+Save the `credentials` object to `~/.cloudflared/credentials.json` and run:
+```bash
+cloudflared tunnel run --config ~/.cloudflared/credentials.json
+```
 
 ## Support
 
