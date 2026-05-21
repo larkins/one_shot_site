@@ -411,9 +411,9 @@ class AgiethClient:
         Returns:
             Dict with success status
         """
-        return self._post_form(
+        return self._post(
             "/api/v1/namecheap/nameservers",
-            params={"domain": domain, "nameservers": nameservers}
+            data={"domain": domain, "nameservers": nameservers}
         )
 
     def get_namesilo_nameservers(self, domain: str) -> Dict:
@@ -440,9 +440,9 @@ class AgiethClient:
         Returns:
             Dict with success status
         """
-        return self._post_form(
+        return self._post(
             "/api/v1/namesilo/nameservers",
-            params={"domain": domain, "nameservers": nameservers}
+            data={"domain": domain, "nameservers": nameservers}
         )
 
     # ========== Balance & Credits ==========

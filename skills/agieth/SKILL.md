@@ -154,6 +154,8 @@ client.get_namecheap_nameservers("example.com")   # Namecheap
 client.get_namesilo_nameservers("example.com")    # NameSilo
 ```
 
+> Both `set_*_nameservers` methods send a JSON body: `{"domain": "...", "nameservers": [...]}`
+
 ### Cloudflare Integration (FREE)
 
 ```python
