@@ -371,6 +371,13 @@ while True:
         break
     time.sleep(30)
 
+# Point registrar nameservers to Cloudflare
+# Use the correct registrar for your domain:
+# Namecheap:
+client.set_namecheap_nameservers(domain, ["ns1.cloudflare.com", "ns2.cloudflare.com"])
+# NameSilo:
+# client.set_namesilo_nameservers(domain, ["ns1.cloudflare.com", "ns2.cloudflare.com"])
+
 # Set up Cloudflare
 zone = client.create_cloudflare_zone(domain)
 print(f"Nameservers: {zone['name_servers']}")

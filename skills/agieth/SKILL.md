@@ -137,6 +137,23 @@ client.add_dns_record(
 client.delete_dns_record("example.com", record_id)
 ```
 
+### Registrar Nameservers
+
+**You must use the correct registrar endpoint for your domain.** After registration, point your domain to Cloudflare nameservers:
+
+```python
+# For Namecheap domains:
+nameservers = ["ns1.cloudflare.com", "ns2.cloudflare.com"]
+client.set_namecheap_nameservers("example.com", nameservers)
+
+# For NameSilo domains:
+client.set_namesilo_nameservers("example.com", nameservers)
+
+# Check current nameservers:
+client.get_namecheap_nameservers("example.com")   # Namecheap
+client.get_namesilo_nameservers("example.com")    # NameSilo
+```
+
 ### Cloudflare Integration (FREE)
 
 ```python

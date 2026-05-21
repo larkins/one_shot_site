@@ -335,18 +335,20 @@ class AgiethClient:
             Dict with:
                 - tunnel_id: Cloudflare tunnel ID
                 - tunnel_token: Token for cloudflared tunnel run
+                - credentials: Full credentials object (AccountTag, TunnelID, TunnelName, TunnelSecret)
                 - instructions: Setup instructions
 
         Example:
             >>> result = client.create_tunnel("myapp.com", 3000)
             >>> print(result["tunnel_token"])
-            >>> # Run: cloudflared tunnel run --token <tunnel_token>
+            >>> print(result["credentials"]["TunnelSecret"])
+            >>> # Save credentials to ~/.cloudflared/credentials.json and run:
+            >>> # cloudflared tunnel run --config ~/.cloudflared/credentials.json
         """
-        data = {
-            "domain": domain,
-            "local_port": local_port,
-        }
-        return self._post("/api/v1/hosting/tunnel", data=data)
+        return self._post(
+            "/api/v1/hosting/tunnel",
+            params={"domain": domain, "local_port": local_port}
+        )
 
     def get_tunnel_token(self, domain: str) -> Dict:
         """Get tunnel token for an existing domain.
@@ -382,6 +384,66 @@ class AgiethClient:
             Dict with cancellation status
         """
         return self._delete(f"/api/v1/hosting/{domain}")
+
+    # ========== Registrar Nameservers ==========
+
+    def get_namecheap_nameservers(self, domain: str) -> Dict:
+        """Get current nameservers for a domain at Namecheap.
+
+        Args:
+            domain: Domain name
+
+        Returns:
+            Dict with domain and nameservers list
+        """
+        return self._get(f"/api/v1/namecheap/nameservers/{domain}")
+
+    def set_namecheap_nameservers(self, domain: str, nameservers: List[str]) -> Dict:
+        """Change nameservers for a domain at Namecheap.
+
+        Use this to point a domain's DNS to Cloudflare after registration.
+
+        Args:
+            domain: Domain name (e.g. "example.com")
+            nameservers: List of nameserver hostnames
+                         e.g. ["ns1.cloudflare.com", "ns2.cloudflare.com"]
+
+        Returns:
+            Dict with success status
+        """
+        return self._post_form(
+            "/api/v1/namecheap/nameservers",
+            params={"domain": domain, "nameservers": nameservers}
+        )
+
+    def get_namesilo_nameservers(self, domain: str) -> Dict:
+        """Get current nameservers for a domain at NameSilo.
+
+        Args:
+            domain: Domain name
+
+        Returns:
+            Dict with domain and nameservers list
+        """
+        return self._get(f"/api/v1/namesilo/nameservers/{domain}")
+
+    def set_namesilo_nameservers(self, domain: str, nameservers: List[str]) -> Dict:
+        """Change nameservers for a domain at NameSilo.
+
+        Use this to point a domain's DNS to Cloudflare after registration.
+
+        Args:
+            domain: Domain name (e.g. "example.com")
+            nameservers: List of nameserver hostnames
+                         e.g. ["ns1.cloudflare.com", "ns2.cloudflare.com"]
+
+        Returns:
+            Dict with success status
+        """
+        return self._post_form(
+            "/api/v1/namesilo/nameservers",
+            params={"domain": domain, "nameservers": nameservers}
+        )
 
     # ========== Balance & Credits ==========
 
