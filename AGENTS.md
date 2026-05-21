@@ -116,12 +116,20 @@ print(f"Credits: ${balance.get('credit_usd_cents', 0)/100}")
 zone = client.create_cloudflare_zone("mynewsite.com")
 nameservers = zone["name_servers"]
 
-# Add DNS records via registrar (Namecheap)
-client.add_dns_record(
+# Add DNS records via Cloudflare (use Cloudflare, not registrar, for tunnel hosting)
+client.create_cloudflare_dns_record(
     domain="mynewsite.com",
     record_type="A",
     name="@",
-    value="192.168.1.1"
+    content="192.168.1.1",
+    proxied=False   # CRITICAL: proxied=False required for tunnel traffic
+)
+
+# Update proxied setting on any record
+client.update_dns_record(
+    "mynewsite.com",
+    record_id="abc123",
+    proxied=False   # Turn off Cloudflare proxy (grey cloud)
 )
 
 # Add www redirect page rule
@@ -142,6 +150,7 @@ client.create_page_rule(
 | `/api/v1/balance` | Check account balance |
 | `/api/v1/cloudflare/zones` | Create Cloudflare zone |
 | `/api/v1/cloudflare/zones/{id}/dns` | DNS record management |
+| `/api/v1/cloudflare/zones/{id}/dns/{record_id}` | Update DNS record |
 | `/api/v1/cloudflare/zones/{id}/pagerules` | Page rules |
 | `/domains` | Owned domains for current API key user (default mode) |
 | `/api/v1/cloudflare/services` | Cloudflare/hosting pricing metadata |
@@ -382,9 +391,16 @@ client.set_namecheap_nameservers(domain, ["ns1.cloudflare.com", "ns2.cloudflare.
 zone = client.create_cloudflare_zone(domain)
 print(f"Nameservers: {zone['name_servers']}")
 
-# Add DNS records
-client.add_dns_record(domain, "A", "@", "192.168.1.1")
-client.add_dns_record(domain, "CNAME", "www", domain)
+# Add DNS records — use Cloudflare directly (not registrar) for tunnel hosting
+client.create_cloudflare_dns_record(
+    domain, "A", "@", LOCAL_IP, proxied=False
+)   # IMPORTANT: proxied=False is required for tunnel traffic
+client.create_cloudflare_dns_record(
+    domain, "CNAME", "www", domain, proxied=False
+)
+
+# If any records need updating (e.g. turn off Cloudflare proxy):
+# client.update_dns_record(domain, record_id="...", proxied=False)
 ```
 
 ## Files

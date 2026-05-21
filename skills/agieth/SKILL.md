@@ -133,6 +133,15 @@ client.add_dns_record(
     value="192.168.1.1"
 )
 
+# Update DNS record — change proxied, content, TTL, etc.
+client.update_dns_record(
+    "example.com",
+    record_id="abc123",
+    content="192.168.1.2",   # optional
+    ttl=7200,               # optional
+    proxied=False           # optional — set to False for tunnel/DNS-only mode
+)
+
 # Delete DNS record
 client.delete_dns_record("example.com", record_id)
 ```
@@ -159,18 +168,26 @@ client.get_namesilo_nameservers("example.com")    # NameSilo
 ### Cloudflare Integration (FREE)
 
 ```python
-# Create Cloudflare zone
+# Create Cloudflare zone (or get existing by domain name)
 zone = client.create_cloudflare_zone("example.com")
 
 # List zones
 zones = client.list_cloudflare_zones()
 
-# Create DNS records in Cloudflare
+# Create DNS records in Cloudflare (use domain name, not zone_id)
 client.create_cloudflare_dns_record(
-    zone_id=zone["zone_id"],
+    domain="example.com",
     record_type="A",
     name="@",
-    content="192.168.1.1"
+    content="192.168.1.1",
+    proxied=False   # IMPORTANT: set to False for tunnel hosting
+)
+
+# Update a DNS record (e.g. change proxied setting to DNS-only)
+client.update_dns_record(
+    "example.com",
+    record_id="abc123",
+    proxied=False   # Cloudflare proxy must be OFF for tunnel traffic
 )
 
 # Create page rule (www redirect)

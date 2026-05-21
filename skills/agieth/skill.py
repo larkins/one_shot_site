@@ -83,6 +83,12 @@ class AgiethClient:
         resp = requests.post(url, headers=headers, data=data, params=params, timeout=30)
         return resp.json()
 
+    def _put(self, endpoint: str, params: Dict = None) -> Dict:
+        """Make PUT request."""
+        url = f"{self.base_url}{endpoint}"
+        resp = requests.put(url, headers=self._headers(), params=params, timeout=30)
+        return resp.json()
+
     def _delete(self, endpoint: str, params: Dict = None) -> Dict:
         """Make DELETE request."""
         url = f"{self.base_url}{endpoint}"
@@ -287,6 +293,42 @@ class AgiethClient:
             params["priority"] = priority
 
         return self._post(f"/api/v1/domains/{domain}/dns", params=params)
+
+    def update_dns_record(self, domain: str, record_id: str,
+                          name: str = None, content: str = None,
+                          ttl: int = None, proxied: bool = None,
+                          registrar: str = "cloudflare") -> Dict:
+        """Update a DNS record.
+
+        Routes to Cloudflare when the domain has a Cloudflare zone, otherwise
+        uses the registrar API.
+
+        Args:
+            domain: Domain name
+            record_id: Record ID to update
+            name: New record name (optional)
+            content: New record value (optional)
+            ttl: New TTL in seconds (optional)
+            proxied: Enable Cloudflare proxy (optional — cloudflare only)
+            registrar: Provider — cloudflare (default), namecheap, or namesilo
+
+        Returns:
+            Dict with success status
+        """
+        params = {}
+        if name is not None:
+            params["name"] = name
+        if content is not None:
+            params["content"] = content
+        if ttl is not None:
+            params["ttl"] = ttl
+        if proxied is not None:
+            params["proxied"] = "true" if proxied else "false"
+
+        return self._put(
+            f"/api/v1/domains/{domain}/dns/{record_id}",
+            params={"registrar": registrar, **params}
+        )
 
     def delete_dns_record(self, domain: str, record_id: str,
                           registrar: str = "namecheap") -> Dict:
