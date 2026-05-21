@@ -112,33 +112,37 @@ print(f"Credits: ${balance.get('credit_usd_cents', 0)/100}")
 ### 4. Cloudflare Integration (FREE)
 
 ```python
-# Create Cloudflare zone
+# 1. Create Cloudflare zone
 zone = client.create_cloudflare_zone("mynewsite.com")
-nameservers = zone["name_servers"]
 
-# Add DNS records via Cloudflare (use Cloudflare, not registrar, for tunnel hosting)
+# 2. Switch nameservers at your registrar to:
+#   chelsea.ns.cloudflare.com + margo.ns.cloudflare.com
+# (Do this before adding Cloudflare DNS records)
+
+# 3. Create tunnel and DNS record in one step:
+result = client.create_tunnel("mynewsite.com", local_port=3000)
+# Returns: tunnel_id, tunnel_token, hostname ("<tunnel_id>.cfargotunnel.com")
+
+# 4. Add DNS — CNAME + proxied=True is REQUIRED for HTTPS:
 client.create_cloudflare_dns_record(
     domain="mynewsite.com",
-    record_type="A",
+    record_type="CNAME",
     name="@",
-    content="192.168.1.1",
-    proxied=False   # CRITICAL: proxied=False required for tunnel traffic
+    content=result["hostname"],   # "<tunnel_id>.cfargotunnel.com"
+    proxied=True                   # Cloudflare routes traffic to tunnel
 )
 
-# Update proxied setting on any record
-client.update_dns_record(
-    "mynewsite.com",
-    record_id="abc123",
-    proxied=False   # Turn off Cloudflare proxy (grey cloud)
-)
-
-# Add www redirect page rule
-client.create_page_rule(
-    zone_id=zone["zone_id"],
-    target_url="www.mynewsite.com/*",
-    forward_url="https://mynewsite.com/$1"
+# 5. Add www too:
+client.create_cloudflare_dns_record(
+    domain="mynewsite.com",
+    record_type="CNAME",
+    name="www",
+    content=result["hostname"],
+    proxied=True
 )
 ```
+
+**⚠️ Common mistake:** Using `proxied=False` or A/AAAA records instead of CNAME. This causes a 403 error — Cloudflare can only route tunnel traffic when the DNS record is a CNAME to `*.cfargotunnel.com` with `proxied=True`.
 
 ## API Endpoints
 
@@ -190,6 +194,8 @@ sudo ./caddy_install.sh yourdomain.com
 
 No Cloudflare account needed - tunnel is created in agieth's Cloudflare.
 
+**⚠️ DNS setup is critical:** After `create_tunnel()`, you MUST add a CNAME DNS record with `proxied=True`. See Section 4 above for the exact steps. Without this, HTTPS will return a 403 error.
+
 **Files:**
 ```
 setup/
@@ -210,6 +216,7 @@ python cloudflare_tunnel_install.py yourdomain.com 3000
 client = AgiethClient()
 result = client.create_tunnel("yourdomain.com", local_port=3000)
 token = result["tunnel_token"]  # Run: cloudflared tunnel run --token <token>
+# Then add CNAME DNS record — see Section 4, step 3-5
 ```
 
 **Features:**

@@ -177,17 +177,17 @@ zones = client.list_cloudflare_zones()
 # Create DNS records in Cloudflare (use domain name, not zone_id)
 client.create_cloudflare_dns_record(
     domain="example.com",
-    record_type="A",
+    record_type="CNAME",          # CNAME required for tunnel hosting
     name="@",
-    content="192.168.1.1",
-    proxied=False   # IMPORTANT: set to False for tunnel hosting
+    content="<tunnel_id>.cfargotunnel.com",
+    proxied=True   # REQUIRED — Cloudflare proxy routes traffic to the tunnel
 )
 
-# Update a DNS record (e.g. change proxied setting to DNS-only)
+# Update a DNS record (e.g. turn on proxy for tunnel traffic)
 client.update_dns_record(
     "example.com",
     record_id="abc123",
-    proxied=False   # Cloudflare proxy must be OFF for tunnel traffic
+    proxied=True   # Cloudflare proxy must be ON for tunnel traffic to work
 )
 
 # Create page rule (www redirect)
@@ -203,12 +203,33 @@ client.create_page_rule(
 ```python
 # Create tunnel (no public IP needed)
 result = client.create_tunnel("example.com", local_port=3000)
-# Returns tunnel_token
+# Returns: tunnel_id, tunnel_token, hostname
+# hostname = "<tunnel_id>.cfargotunnel.com"
 
 # Run: cloudflared tunnel run --token <tunnel_token>
+
+# DNS setup (REQUIRED for HTTPS to work):
+client.create_cloudflare_dns_record(
+    domain="example.com",
+    record_type="CNAME",
+    name="@",
+    content=result["hostname"],   # e.g. "abc123.cfargotunnel.com"
+    proxied=True                  # REQUIRED — Cloudflare routes traffic here
+)
+
+# Also add www:
+client.create_cloudflare_dns_record(
+    domain="example.com",
+    record_type="CNAME",
+    name="www",
+    content=result["hostname"],
+    proxied=True
+)
 ```
 
-**Alternative:** If you have a static IP, you can skip cloudflared entirely. Just add an A record pointing to your static IP instead.
+**⚠️ Critical:** The DNS record MUST be `CNAME` → `*.cfargotunnel.com` with `proxied=True`. Do NOT use A/AAAA records pointing to tunnel IPs — Cloudflare will block them with a 403 error. This is the #1 cause of broken HTTPS with tunnels.
+
+**Alternative:** If you have a static IP, you can skip cloudflared entirely. Add an A record pointing to your static IP instead (and set `proxied=False`).
 
 ### Balance & Credits
 
