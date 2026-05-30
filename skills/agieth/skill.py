@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.8"
+SKILL_VERSION = "1.0.12"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -87,6 +87,18 @@ class AgiethClient:
         """Make PUT request."""
         url = f"{self.base_url}{endpoint}"
         resp = requests.put(url, headers=self._headers(), params=params, timeout=30)
+        return resp.json()
+
+    def _put_json(self, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
+        """Make PUT request with JSON body."""
+        url = f"{self.base_url}{endpoint}"
+        resp = requests.put(url, headers=self._headers(), json=data, params=params, timeout=30)
+        return resp.json()
+
+    def _patch(self, endpoint: str, data: Dict = None, params: Dict = None) -> Dict:
+        """Make PATCH request with JSON body."""
+        url = f"{self.base_url}{endpoint}"
+        resp = requests.patch(url, headers=self._headers(), json=data, params=params, timeout=30)
         return resp.json()
 
     def _delete(self, endpoint: str, params: Dict = None) -> Dict:
@@ -361,6 +373,158 @@ class AgiethClient:
         """List all Cloudflare zones."""
         return self._get("/api/v1/cloudflare/zones")
 
+    # ========== Cloudflare Workers (Inbound Email) ==========
+
+    def list_cloudflare_workers(self, domain: str = None) -> Dict:
+        """List Cloudflare Workers for your owned agieth domains.
+
+        Args:
+            domain: Optional owned domain filter
+
+        Returns:
+            Dict with worker metadata for scripts tagged to your domains
+        """
+        params = {"domain": domain} if domain else None
+        return self._get("/api/v1/cloudflare/worker/scripts", params=params)
+
+    def get_cloudflare_worker(self, script_name: str) -> Dict:
+        """Get Cloudflare Worker metadata, settings, and raw content.
+
+        Args:
+            script_name: Worker script name
+
+        Returns:
+            Dict with worker metadata, script settings, and content
+        """
+        return self._get(f"/api/v1/cloudflare/worker/scripts/{script_name}")
+
+    def deploy_cloudflare_worker(
+        self,
+        script_name: str,
+        domain: str,
+        content: str,
+        bindings: List[Dict] = None,
+        tags: List[str] = None,
+        compatibility_date: str = None,
+        compatibility_flags: List[str] = None,
+        logpush: bool = None,
+    ) -> Dict:
+        """Deploy or update a Cloudflare Worker for an owned domain.
+
+        Args:
+            script_name: Worker script name
+            domain: Registered agieth domain owned by the authenticated API key
+            content: Worker source code (module-style JavaScript/TypeScript)
+            bindings: Optional Cloudflare Worker bindings to include on deploy
+            tags: Optional additional Cloudflare tags
+            compatibility_date: Optional Cloudflare compatibility date
+            compatibility_flags: Optional Cloudflare compatibility flags
+            logpush: Optional Cloudflare logpush setting
+
+        Returns:
+            Dict with deployed worker metadata
+        """
+        data = {
+            "domain": domain,
+            "content": content,
+        }
+        if bindings is not None:
+            data["bindings"] = bindings
+        if tags is not None:
+            data["tags"] = tags
+        if compatibility_date is not None:
+            data["compatibility_date"] = compatibility_date
+        if compatibility_flags is not None:
+            data["compatibility_flags"] = compatibility_flags
+        if logpush is not None:
+            data["logpush"] = logpush
+
+        return self._put_json(f"/api/v1/cloudflare/worker/scripts/{script_name}", data=data)
+
+    def delete_cloudflare_worker(self, script_name: str) -> Dict:
+        """Delete an owned Cloudflare Worker.
+
+        Args:
+            script_name: Worker script name
+
+        Returns:
+            Dict with deletion status
+        """
+        return self._delete(f"/api/v1/cloudflare/worker/scripts/{script_name}")
+
+    def get_cloudflare_worker_settings(self, script_name: str) -> Dict:
+        """Get script-level settings for an owned Cloudflare Worker.
+
+        Args:
+            script_name: Worker script name
+
+        Returns:
+            Dict with logpush, tags, observability, and tail consumer settings
+        """
+        return self._get(f"/api/v1/cloudflare/worker/scripts/{script_name}/settings")
+
+    def update_cloudflare_worker_settings(
+        self,
+        script_name: str,
+        logpush: Optional[bool] = None,
+        observability: Dict = None,
+        tail_consumers: List[Dict] = None,
+        tags: List[str] = None,
+    ) -> Dict:
+        """Patch script-level settings for an owned Cloudflare Worker.
+
+        Args:
+            script_name: Worker script name
+            logpush: Optional logpush toggle
+            observability: Optional Cloudflare observability settings object
+            tail_consumers: Optional tail worker consumers list
+            tags: Optional additional tags
+
+        Returns:
+            Dict with updated settings
+        """
+        data = {}
+        if logpush is not None:
+            data["logpush"] = logpush
+        if observability is not None:
+            data["observability"] = observability
+        if tail_consumers is not None:
+            data["tail_consumers"] = tail_consumers
+        if tags is not None:
+            data["tags"] = tags
+
+        return self._patch(f"/api/v1/cloudflare/worker/scripts/{script_name}/settings", data=data)
+
+    def set_cloudflare_worker_secret(self, script_name: str, secret_name: str, text: str) -> Dict:
+        """Create or update a Cloudflare Worker secret.
+
+        Args:
+            script_name: Worker script name
+            secret_name: Secret binding name (for example WEBHOOK_SECRET)
+            text: Secret value
+
+        Returns:
+            Dict with secret metadata
+        """
+        return self._put_json(
+            f"/api/v1/cloudflare/worker/scripts/{script_name}/secrets/{secret_name}",
+            data={"text": text},
+        )
+
+    def delete_cloudflare_worker_secret(self, script_name: str, secret_name: str) -> Dict:
+        """Delete a Cloudflare Worker secret.
+
+        Args:
+            script_name: Worker script name
+            secret_name: Secret binding name
+
+        Returns:
+            Dict with deletion status
+        """
+        return self._delete(
+            f"/api/v1/cloudflare/worker/scripts/{script_name}/secrets/{secret_name}"
+        )
+
     # ========== Cloudflare Tunnel Hosting ==========
 
     def create_tunnel(self, domain: str, local_port: int = 3000) -> Dict:
@@ -384,8 +548,8 @@ class AgiethClient:
             >>> result = client.create_tunnel("myapp.com", 3000)
             >>> print(result["tunnel_token"])
             >>> print(result["credentials"]["TunnelSecret"])
-            >>> # Save credentials to ~/.cloudflared/credentials.json and run:
-            >>> # cloudflared tunnel run --config ~/.cloudflared/credentials.json
+            >>> # Save credentials to a cloudflared credentials file and run:
+            >>> # cloudflared tunnel run --config /path/to/cloudflared-credentials.json
         """
         return self._post(
             "/api/v1/hosting/tunnel",

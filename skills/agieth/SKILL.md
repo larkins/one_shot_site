@@ -1,7 +1,7 @@
 ---
 name: agieth
-description: Purchase domains, manage DNS and Cloudflare settings via agieth.ai Agent Bridge
-version: 1.0.11
+description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
+version: 1.0.12
 metadata:
   openclaw:
     requires:
@@ -18,6 +18,7 @@ metadata:
       - domain-registration
       - cloudflare
       - dns
+      - email-routing
 ---
 
 # agieth.ai API Skill
@@ -130,14 +131,14 @@ client.add_dns_record(
     domain="example.com",
     record_type="A",
     name="www",
-    value="192.168.1.1"
+    value="203.0.113.10"
 )
 
 # Update DNS record — change proxied, content, TTL, etc.
 client.update_dns_record(
     "example.com",
     record_id="abc123",
-    content="192.168.1.2",   # optional
+    content="203.0.113.11",   # optional
     ttl=7200,               # optional
     proxied=False           # optional — set to False for tunnel/DNS-only mode
 )
@@ -198,6 +199,66 @@ client.create_page_rule(
 )
 ```
 
+### Cloudflare Workers (Inbound Email)
+
+```python
+WORKER_JS = """
+export default {
+  async email(message, env) {
+    await fetch(env.WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Webhook-Secret": env.WEBHOOK_SECRET
+      },
+      body: JSON.stringify({
+        from: message.from,
+        to: message.to,
+        subject: message.headers.get("subject") || ""
+      })
+    });
+  }
+};
+"""
+
+# Deploy a Worker for an owned agieth domain
+client.deploy_cloudflare_worker(
+    script_name="email-example-com",
+    domain="example.com",
+    content=WORKER_JS,
+    bindings=[
+        {
+            "type": "plain_text",
+            "name": "WEBHOOK_URL",
+            "text": "https://mail.example.com/inbound"
+        }
+    ],
+    tags=["inbound-email"]
+)
+
+# Add a secret used by the Worker
+client.set_cloudflare_worker_secret(
+    "email-example-com",
+    "WEBHOOK_SECRET",
+    "replace-me"
+)
+
+# Inspect or update the Worker later
+client.list_cloudflare_workers("example.com")
+client.get_cloudflare_worker("email-example-com")
+client.get_cloudflare_worker_settings("email-example-com")
+client.update_cloudflare_worker_settings(
+    "email-example-com",
+    tags=["inbound-email", "production"]
+)
+```
+
+- Worker routes are restricted to domains owned by the authenticated API key.
+- Deploy requests automatically add agieth ownership tags to the script.
+- Use deploy `bindings` for plain-text config like `WEBHOOK_URL`.
+- Use `set_cloudflare_worker_secret` for secret values like `WEBHOOK_SECRET`.
+- Worker settings endpoints manage Cloudflare script settings such as tags, `logpush`, observability, and tail consumers.
+
 ### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 
 ```python
@@ -252,7 +313,7 @@ credits = client.get_credits()
 
 ## Cloudflare Authorization
 
-The tunnel feature uses **agieth.ai's Cloudflare account** — not yours. Agieth creates the tunnel, gives you a token, and Cloudflare sees all traffic as agieth's. You do NOT need your own Cloudflare API token for this skill to work.
+The Cloudflare tunnel and worker features use **agieth.ai's Cloudflare account** — not yours. Agieth creates the resources, returns the data you need, and Cloudflare sees the traffic as agieth-managed infrastructure. You do NOT need your own Cloudflare API token for this skill to work.
 
 ## Security Notes
 
