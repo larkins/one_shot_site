@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.13
+version: 1.0.15
 metadata:
   openclaw:
     requires:
@@ -244,10 +244,17 @@ client.set_cloudflare_worker_secret(
     "replace-me"
 )
 
+# Route all unmatched inbound mail for the domain to the Worker
+client.set_cloudflare_worker_catch_all(
+    domain="example.com",
+    script_name="email-example-com"
+)
+
 # Inspect or update the Worker later
 client.list_cloudflare_workers("example.com")
 client.get_cloudflare_worker("email-example-com")
 client.get_cloudflare_worker_settings("email-example-com")
+client.get_cloudflare_worker_catch_all("example.com")
 client.update_cloudflare_worker_settings(
     "email-example-com",
     tags=["inbound-email", "production"]
@@ -258,7 +265,63 @@ client.update_cloudflare_worker_settings(
 - Deploy requests automatically add agieth ownership tags to the script.
 - Use deploy `bindings` for plain-text config like `WEBHOOK_URL`.
 - Use `set_cloudflare_worker_secret` for secret values like `WEBHOOK_SECRET`.
+- Use `set_cloudflare_worker_catch_all` to configure Cloudflare Email Routing catch-all delivery to the Worker.
 - Worker settings endpoints manage Cloudflare script settings such as tags, `logpush`, observability, and tail consumers.
+- Catch-all routing also requires Cloudflare Email Routing to be enabled for the zone.
+
+### Cloudflare Email Routing Rules (granular per-zone CRUD)
+
+For more granular control than the catch-all helper, manage individual email routing rules per zone. Required token on the agieth server: `CLOUDFLARE_ALL_ZONE_EMAIL_ROUTING` with Email Routing Rules Edit permission.
+
+```python
+# List existing rules for a zone
+rules = client.list_email_routing_rules(zone_id="80f8043960db99916b554eb82be2666c")
+
+# Create a catch-all rule (use when no other catch-all rule exists)
+client.create_email_routing_rule(
+    zone_id="80f8043960db99916b554eb82be2666c",
+    name="Forward all to email-forwarder Worker",
+    matchers=[{"type": "all"}],
+    actions=[{"type": "worker", "value": ["email-forwarder"]}],
+    enabled=True
+)
+
+# Create a specific address rule (use this if a catch-all drop rule already exists)
+client.create_email_routing_rule(
+    zone_id="80f8043960db99916b554eb82be2666c",
+    name="Forward info@ to Worker",
+    matchers=[{"type": "literal", "field": "to", "value": "info@example.com"}],
+    actions=[{"type": "worker", "value": ["email-forwarder"]}],
+    enabled=True
+)
+
+# Update or delete an existing rule
+client.update_email_routing_rule(
+    zone_id="80f8043960db99916b554eb82be2666c",
+    rule_id="d088e9b5a72f435ea2caf88b1b695771",
+    actions=[{"type": "worker", "value": ["email-forwarder"]}],
+    enabled=True
+)
+client.delete_email_routing_rule(
+    zone_id="80f8043960db99916b554eb82be2666c",
+    rule_id="d088e9b5a72f435ea2caf88b1b695771"
+)
+```
+
+**Matcher types:**
+- `{"type": "all"}` — catch-all (only ONE allowed per zone; conflicts with existing drop rules)
+- `{"type": "literal", "field": "to", "value": "info@example.com"}` — specific address
+
+**Action types:**
+- `{"type": "worker", "value": ["email-forwarder"]}` — route to a Cloudflare Worker
+- `{"type": "forward", "value": ["you@gmail.com"]}` — forward to another email (must be verified)
+- `{"type": "drop"}` — silently drop the email (no delivery)
+
+**Known issues:**
+- Error 2020 "Invalid rule operation": existing catch-all drop rule blocks updates. Workaround: use specific `literal` matchers.
+- Error 2007 "must specify worker id": worker value should be the script name in a list: `["email-forwarder"]`
+- Error 2054 "Destination address is not verified": forward action requires a verified destination email.
+- Cloudflare only allows ONE catch-all rule per zone. If a disabled drop rule already exists, use `literal` matchers for additional rules.
 
 ### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 

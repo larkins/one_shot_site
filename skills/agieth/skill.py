@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.13"
+SKILL_VERSION = "1.0.15"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -551,6 +551,153 @@ class AgiethClient:
             data["tags"] = tags
 
         return self._patch(f"/api/v1/cloudflare/worker/scripts/{script_name}/settings", data=data)
+
+    def get_cloudflare_worker_catch_all(self, domain: str) -> Dict:
+        """Get the Cloudflare Email Routing catch-all rule for an owned domain.
+
+        Args:
+            domain: Owned domain name
+
+        Returns:
+            Dict with catch-all rule metadata
+        """
+        return self._get(f"/api/v1/cloudflare/worker/domains/{domain}/catch-all")
+
+    def set_cloudflare_worker_catch_all(
+        self,
+        domain: str,
+        script_name: str,
+        enabled: bool = True,
+        name: str = None,
+    ) -> Dict:
+        """Route catch-all inbound mail for an owned domain to an owned Worker.
+
+        Args:
+            domain: Owned domain name
+            script_name: Cloudflare Worker script name
+            enabled: Enable or disable the catch-all rule
+            name: Optional Cloudflare rule name
+
+        Returns:
+            Dict with updated catch-all rule metadata
+        """
+        data = {
+            "script_name": script_name,
+            "enabled": enabled,
+        }
+        if name is not None:
+            data["name"] = name
+        return self._put_json(f"/api/v1/cloudflare/worker/domains/{domain}/catch-all", data=data)
+
+    # ── Granular Email Routing Rules (per-zone) ─────────────────────────────
+    # These provide full CRUD on Cloudflare Email Routing rules — useful when
+    # you need specific address rules instead of (or alongside) a catch-all.
+    # Requires CLOUDFLARE_ALL_ZONE_EMAIL_ROUTING on the agieth server.
+
+    def list_email_routing_rules(self, zone_id: str) -> Dict:
+        """List all email routing rules for a Cloudflare zone.
+
+        Args:
+            zone_id: Cloudflare zone ID (e.g. "80f8043960db99916b554eb82be2666c")
+
+        Returns:
+            Dict with "rules" list and "total" count
+        """
+        return self._get(f"/api/v1/cloudflare/zones/{zone_id}/email/routing/rules")
+
+    def create_email_routing_rule(
+        self,
+        zone_id: str,
+        matchers: List[Dict],
+        actions: List[Dict],
+        name: str = None,
+        enabled: bool = True,
+        priority: int = None,
+    ) -> Dict:
+        """Create a new email routing rule for a Cloudflare zone.
+
+        Typical use: route all inbound mail for the zone (or specific addresses)
+        to a Cloudflare Worker (e.g. "email-forwarder").
+
+        Matcher examples:
+            [{"type": "all"}]                                       # catch-all
+            [{"type": "literal", "field": "to", "value": "info@x"}]  # specific
+
+        Action examples:
+            [{"type": "worker", "value": ["email-forwarder"]}]
+            [{"type": "forward", "value": ["you@gmail.com"]}]
+            [{"type": "drop"}]
+
+        Args:
+            zone_id: Cloudflare zone ID
+            matchers: List of matcher dicts
+            actions: List of action dicts
+            name: Optional Cloudflare rule name
+            enabled: Enable or disable the rule
+            priority: Optional priority (lower = higher precedence)
+
+        Returns:
+            Dict with created "rule" object
+        """
+        data = {
+            "matchers": matchers,
+            "actions": actions,
+            "enabled": enabled,
+        }
+        if name is not None:
+            data["name"] = name
+        if priority is not None:
+            data["priority"] = priority
+        return self._post(f"/api/v1/cloudflare/zones/{zone_id}/email/routing/rules", data=data)
+
+    def update_email_routing_rule(
+        self,
+        zone_id: str,
+        rule_id: str,
+        name: str = None,
+        matchers: List[Dict] = None,
+        actions: List[Dict] = None,
+        enabled: bool = None,
+        priority: int = None,
+    ) -> Dict:
+        """Update an existing email routing rule (full replace via PUT).
+
+        Args:
+            zone_id: Cloudflare zone ID
+            rule_id: Routing rule ID
+            name: New rule name (or None to keep)
+            matchers: New matchers list (or None to keep)
+            actions: New actions list (or None to keep)
+            enabled: New enabled state (or None to keep)
+            priority: New priority (or None to keep)
+
+        Returns:
+            Dict with updated "rule" object
+        """
+        data = {}
+        if name is not None:
+            data["name"] = name
+        if matchers is not None:
+            data["matchers"] = matchers
+        if actions is not None:
+            data["actions"] = actions
+        if enabled is not None:
+            data["enabled"] = enabled
+        if priority is not None:
+            data["priority"] = priority
+        return self._put_json(f"/api/v1/cloudflare/zones/{zone_id}/email/routing/rules/{rule_id}", data=data)
+
+    def delete_email_routing_rule(self, zone_id: str, rule_id: str) -> Dict:
+        """Delete an email routing rule.
+
+        Args:
+            zone_id: Cloudflare zone ID
+            rule_id: Routing rule ID
+
+        Returns:
+            Dict with "deleted": True
+        """
+        return self._delete(f"/api/v1/cloudflare/zones/{zone_id}/email/routing/rules/{rule_id}")
 
     def set_cloudflare_worker_secret(self, script_name: str, secret_name: str, text: str) -> Dict:
         """Create or update a Cloudflare Worker secret.
