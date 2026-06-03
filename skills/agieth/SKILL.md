@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.12
+version: 1.0.13
 metadata:
   openclaw:
     requires:
@@ -188,7 +188,8 @@ client.create_cloudflare_dns_record(
 client.update_dns_record(
     "example.com",
     record_id="abc123",
-    proxied=True   # Cloudflare proxy must be ON for tunnel traffic to work
+    proxied=True,
+    registrar="cloudflare"   # Cloudflare proxy must be ON for tunnel traffic to work
 )
 
 # Create page rule (www redirect)
@@ -264,8 +265,9 @@ client.update_cloudflare_worker_settings(
 ```python
 # Create tunnel (no public IP needed)
 result = client.create_tunnel("example.com", local_port=3000)
-# Returns: tunnel_id, tunnel_token, hostname
-# hostname = "<tunnel_id>.cfargotunnel.com"
+# Returns: tunnel_id, tunnel_token, credentials, instructions
+
+hostname = f"{result['tunnel_id']}.cfargotunnel.com"
 
 # Run: cloudflared tunnel run --token <tunnel_token>
 
@@ -274,7 +276,7 @@ client.create_cloudflare_dns_record(
     domain="example.com",
     record_type="CNAME",
     name="@",
-    content=result["hostname"],   # e.g. "abc123.cfargotunnel.com"
+    content=hostname,
     proxied=True                  # REQUIRED — Cloudflare routes traffic here
 )
 
@@ -283,7 +285,7 @@ client.create_cloudflare_dns_record(
     domain="example.com",
     record_type="CNAME",
     name="www",
-    content=result["hostname"],
+    content=hostname,
     proxied=True
 )
 ```

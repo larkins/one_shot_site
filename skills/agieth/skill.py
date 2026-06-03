@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.12"
+SKILL_VERSION = "1.0.13"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -372,6 +372,63 @@ class AgiethClient:
     def list_cloudflare_zones(self) -> Dict:
         """List all Cloudflare zones."""
         return self._get("/api/v1/cloudflare/zones")
+
+    def get_cloudflare_zone(self, domain: str) -> Dict:
+        """Get or create the Cloudflare zone record for an owned domain.
+
+        Args:
+            domain: Owned domain name
+
+        Returns:
+            Dict with Cloudflare zone metadata
+        """
+        return self._get(f"/api/v1/cloudflare/zones/{domain}")
+
+    def list_cloudflare_dns_records(self, zone_id_or_domain: str) -> Dict:
+        """List DNS records for a Cloudflare zone.
+
+        Args:
+            zone_id_or_domain: Cloudflare zone ID or owned domain name
+
+        Returns:
+            Dict with Cloudflare DNS records
+        """
+        return self._get(f"/api/v1/cloudflare/zones/{zone_id_or_domain}/dns")
+
+    def create_cloudflare_dns_record(
+        self,
+        domain: str,
+        record_type: str,
+        name: str,
+        content: str,
+        ttl: int = 3600,
+        proxied: bool = False,
+        priority: int = None,
+    ) -> Dict:
+        """Create a DNS record directly in Cloudflare.
+
+        Args:
+            domain: Owned domain name or Cloudflare zone ID
+            record_type: DNS record type
+            name: DNS name
+            content: DNS value/content
+            ttl: TTL in seconds
+            proxied: Enable Cloudflare proxy when supported
+            priority: Optional MX priority
+
+        Returns:
+            Dict with created record metadata
+        """
+        params = {
+            "record_type": record_type,
+            "name": name,
+            "content": content,
+            "ttl": ttl,
+            "proxied": "true" if proxied else "false",
+        }
+        if priority is not None:
+            params["priority"] = priority
+        return self._post(f"/api/v1/cloudflare/zones/{domain}/dns", params=params)
 
     # ========== Cloudflare Workers (Inbound Email) ==========
 
