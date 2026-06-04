@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.17
+version: 1.0.18
 metadata:
   openclaw:
     requires:
@@ -265,6 +265,7 @@ client.update_cloudflare_worker_settings(
 - Deploy requests automatically add agieth ownership tags to the script.
 - Use deploy `bindings` for plain-text config like `WEBHOOK_URL`.
 - Use `set_cloudflare_worker_secret` for secret values like `WEBHOOK_SECRET`.
+- Use `rotate_cloudflare_worker_secret` to generate a new random secret value, set it on the Worker, and get the new value back in the response. This lets you rotate the upstream (Cloudflare Worker) and downstream (mail server) independently — call this method, then set the returned `new_value` as `SMTP2GO_WEBHOOK_SECRET` in the mail server's `.env` and restart it. Pass `require_ownership=False` for shared/managed Workers like `email-forwarder`.
 - Use `set_cloudflare_worker_catch_all` to configure Cloudflare Email Routing catch-all delivery to the Worker.
 - Worker settings endpoints manage Cloudflare script settings such as tags, `logpush`, observability, and tail consumers.
 - Catch-all routing also requires Cloudflare Email Routing to be enabled for the zone.

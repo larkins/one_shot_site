@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.17"
+SKILL_VERSION = "1.0.18"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -699,20 +699,73 @@ class AgiethClient:
         """
         return self._delete(f"/api/v1/cloudflare/zones/{zone_id}/email/routing/rules/{rule_id}")
 
-    def set_cloudflare_worker_secret(self, script_name: str, secret_name: str, text: str) -> Dict:
+    def set_cloudflare_worker_secret(
+        self,
+        script_name: str,
+        secret_name: str,
+        text: str,
+        require_ownership: bool = True,
+    ) -> Dict:
         """Create or update a Cloudflare Worker secret.
 
         Args:
             script_name: Worker script name
             secret_name: Secret binding name (for example WEBHOOK_SECRET)
             text: Secret value
+            require_ownership: If False, skip the user-ownership check
+                (use for shared/managed Workers like `email-forwarder`)
 
         Returns:
             Dict with secret metadata
         """
+        params = {} if require_ownership else {"require_ownership": "false"}
         return self._put_json(
             f"/api/v1/cloudflare/worker/scripts/{script_name}/secrets/{secret_name}",
             data={"text": text},
+            params=params or None,
+        )
+
+    def rotate_cloudflare_worker_secret(
+        self,
+        script_name: str,
+        secret_name: str,
+        require_ownership: bool = True,
+        random_bytes: int = 32,
+    ) -> Dict:
+        """Rotate a Cloudflare Worker secret — generate a new value and return it.
+
+        Generates a cryptographically random secret, sets it on the Worker,
+        and returns the new value. Use this to rotate the upstream (Cloudflare
+        Worker) and downstream (mail server) independently:
+
+        1. Call this method — get the new_value in the response
+        2. Set that value as SMTP2GO_WEBHOOK_SECRET in the mail server's .env
+        3. Restart the mail server
+        4. Both upstream and downstream now use the new secret
+
+        Args:
+            script_name: Worker script name (e.g. "email-forwarder")
+            secret_name: Secret binding name (e.g. "WEBHOOK_SECRET")
+            require_ownership: If False, skip the user-ownership check
+                (use for shared/managed Workers)
+            random_bytes: Random secret size in bytes (default 32, range 16-64)
+
+        Returns:
+            Dict with new_value, rotated_at, and other metadata
+
+        Example:
+            >>> result = client.rotate_cloudflare_worker_secret(
+            ...     "email-forwarder", "WEBHOOK_SECRET", require_ownership=False
+            ... )
+            >>> new_secret = result["new_value"]
+            >>> # Now update the mail server's env and restart it
+        """
+        params: Dict = {"bytes": str(random_bytes)}
+        if not require_ownership:
+            params["require_ownership"] = "false"
+        return self._post(
+            f"/api/v1/cloudflare/worker/scripts/{script_name}/secrets/{secret_name}/rotate",
+            params=params,
         )
 
     def delete_cloudflare_worker_secret(self, script_name: str, secret_name: str) -> Dict:
