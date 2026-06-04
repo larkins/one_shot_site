@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.15
+version: 1.0.16
 metadata:
   openclaw:
     requires:
@@ -326,6 +326,18 @@ client.delete_email_routing_rule(
 ### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 
 ```python
+# List existing tunnels for your domains
+tunnels = client.list_tunnels()
+for t in tunnels["tunnels"]:
+    cf = t.get("cloudflare") or {}
+    print(f'{t["domain"]}: {cf.get("status", "?")} ({cf.get("connections", 0)} connections)')
+
+# Filter by domain
+tunnels = client.list_tunnels(domain="example.com")
+
+# Include cancelled/archived tunnels
+tunnels = client.list_tunnels(include_archived=True)
+
 # Create tunnel (no public IP needed)
 result = client.create_tunnel("example.com", local_port=3000)
 # Returns: tunnel_id, tunnel_token, credentials, instructions

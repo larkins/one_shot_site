@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.15"
+SKILL_VERSION = "1.0.16"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -730,6 +730,37 @@ class AgiethClient:
         )
 
     # ========== Cloudflare Tunnel Hosting ==========
+
+    def list_tunnels(
+        self,
+        domain: str = None,
+        include_archived: bool = False,
+    ) -> Dict:
+        """List Cloudflare Tunnels owned by the authenticated user.
+
+        Returns tunnels associated with the user's domains, enriched with
+        live Cloudflare status (status, connection count, deleted_at).
+
+        Args:
+            domain: Optional filter — return only tunnels for this domain
+            include_archived: Include cancelled/deactivated tunnels (default False)
+
+        Returns:
+            Dict with:
+                - tunnels: list of tunnel objects (id, name, domain, status, cloudflare info)
+                - total: count of tunnels returned
+
+        Example:
+            >>> tunnels = client.list_tunnels()
+            >>> for t in tunnels["tunnels"]:
+            ...     print(f'{t["domain"]}: {t["cloudflare"]["status"]} ({t["cloudflare"]["connections"]} conns)')
+        """
+        params: Dict = {}
+        if domain is not None:
+            params["domain"] = domain
+        if include_archived:
+            params["include_archived"] = "true"
+        return self._get("/api/v1/cloudflare/tunnel", params=params)
 
     def create_tunnel(self, domain: str, local_port: int = 3000) -> Dict:
         """Create a Cloudflare Tunnel for protected hosting.
