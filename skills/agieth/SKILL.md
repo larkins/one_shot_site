@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.16
+version: 1.0.17
 metadata:
   openclaw:
     requires:
@@ -337,6 +337,14 @@ tunnels = client.list_tunnels(domain="example.com")
 
 # Include cancelled/archived tunnels
 tunnels = client.list_tunnels(include_archived=True)
+
+# Delete a tunnel (mark cancelled + clean up in Cloudflare)
+# Note: stop cloudflared first if it's running
+#   systemctl --user stop cloudflared-mail
+# Then:
+client.delete_tunnel("bb9d5291-857c-4350-8901-b75010072833")
+# Optional: also delete the DNS CNAME records
+client.delete_tunnel("bb9d5291-857c-4350-8901-b75010072833", cleanup_dns=True)
 
 # Create tunnel (no public IP needed)
 result = client.create_tunnel("example.com", local_port=3000)

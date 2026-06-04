@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.16"
+SKILL_VERSION = "1.0.17"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -761,6 +761,39 @@ class AgiethClient:
         if include_archived:
             params["include_archived"] = "true"
         return self._get("/api/v1/cloudflare/tunnel", params=params)
+
+    def delete_tunnel(self, tunnel_id: str, cleanup_dns: bool = False) -> Dict:
+        """Delete a Cloudflare Tunnel owned by the authenticated user.
+
+        Marks the protected_hosting record as cancelled. If cleanup_dns=True,
+        also deletes any CNAME records on the domain's zone pointing to
+        <tunnel_id>.cfargotunnel.com.
+
+        Note: Cloudflare's DELETE is soft — the tunnel enters a "deleted" state
+        for ~30 days before being hard-removed. If the tunnel has active
+        connections, Cloudflare returns error 1022 — stop the cloudflared
+        process first, then retry.
+
+        Args:
+            tunnel_id:   Tunnel ID to delete
+            cleanup_dns: Also delete DNS CNAMEs pointing to this tunnel (default False)
+
+        Returns:
+            Dict with success, tunnel_id, domain, deleted_at, cleaned_dns
+
+        Example:
+            >>> # List tunnels, find the one to delete
+            >>> tunnels = client.list_tunnels()
+            >>> old = next(t for t in tunnels["tunnels"] if t["domain"] == "old.com")
+            >>> # Stop cloudflared first
+            >>> # ... systemctl --user stop cloudflared-mail ...
+            >>> client.delete_tunnel(old["id"])
+            {'success': True, 'tunnel_id': '...', 'domain': 'old.com', ...}
+        """
+        params: Dict = {}
+        if cleanup_dns:
+            params["cleanup_dns"] = "true"
+        return self._delete(f"/api/v1/cloudflare/tunnel/{tunnel_id}", params=params)
 
     def create_tunnel(self, domain: str, local_port: int = 3000) -> Dict:
         """Create a Cloudflare Tunnel for protected hosting.
