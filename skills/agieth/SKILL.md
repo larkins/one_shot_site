@@ -355,6 +355,23 @@ result = client.setup_email_forwarding(
 
 **Caveat:** If the zone has a disabled catch-all drop rule from a previous setup, `use_catch_all=True` will fail with 2020. Workaround: `use_catch_all=False` + `addresses=[...]` + `delete_existing_drop_rule=True`.
 
+**⚠️ Bundled template uses HMAC auth:** The Worker deployed by `setup_email_forwarding` is loaded from
+`~/git/one_shot_email/cloudflare/email-forwarder/per-domain-template/index.ts` and signs requests
+with **HMAC-SHA256** (`X-SMTP2GO-Signature` header). If your mail server uses a different auth flow
+(e.g. `X-Webhook-Secret: <plaintext>`, mTLS, JWT), the deployed Worker will be incompatible and
+requests will be rejected.
+
+To use a different auth flow:
+1. **Replace the template source** at the path above with your own Worker code (the agieth backend
+   reads it at deploy time), OR
+2. **Use `deploy_cloudflare_worker()` instead** to deploy custom Worker content with the auth flow
+   your mail server expects, OR
+3. **Set the `EMAIL_FORWARDER_TEMPLATE_DIR` env var** on the agieth service to point to a different
+   template directory.
+
+See `cloudflare/email-forwarder/per-domain-template/README.md` in the one_shot_email repo for full
+details on the auth flow compatibility check.
+
 ### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 
 ```python
