@@ -1,7 +1,7 @@
 ---
 name: agieth
 description: Purchase domains, manage DNS, Cloudflare settings, and inbound email workers via agieth.ai Agent Bridge
-version: 1.0.18
+version: 1.0.19
 metadata:
   openclaw:
     requires:
@@ -323,6 +323,37 @@ client.delete_email_routing_rule(
 - Error 2007 "must specify worker id": worker value should be the script name in a list: `["email-forwarder"]`
 - Error 2054 "Destination address is not verified": forward action requires a verified destination email.
 - Cloudflare only allows ONE catch-all rule per zone. If a disabled drop rule already exists, use `literal` matchers for additional rules.
+
+### Setup Email Forwarding (one-shot — recommended)
+
+For most new domain setups, use `client.setup_email_forwarding(...)` instead of the lower-level building blocks above. It deploys a per-domain Worker, generates a unique `WEBHOOK_SECRET`, sets the webhook URL and email domain, and creates the email routing rule — all in a single call.
+
+```python
+result = client.setup_email_forwarding(
+    domain="peristyle.ai",
+    webhook_url="https://mail.peristyle.ai/inbound",
+    use_catch_all=False,
+    addresses=[
+        "info@peristyle.ai",
+        "michael@peristyle.ai",
+        "accounts@peristyle.ai",
+        "support@peristyle.ai",
+        "hello@peristyle.ai",
+    ],
+    delete_existing_drop_rule=True,
+)
+# result["webhook_secret"] is auto-generated — propagate it to your mail server
+```
+
+**What it does:**
+1. Deploys a fresh Worker named `email-forwarder-<domain>` (one Worker per domain — clean secret isolation)
+2. Auto-generates a 32-byte `WEBHOOK_SECRET` if you don't pass one
+3. Sets `webhookUrl` and `emailDomain` as plain-text env vars (the `emailDomain` is sent as the `X-Email-Domain` header on every inbound webhook so the mail server can look up the right per-domain secret)
+4. PATCHes script-settings to add agieth ownership tags (`agieth-managed`, `agieth-user:<id>`, `agieth-domain:<domain>`) so the Worker shows up in `list_workers` / `get_worker`
+5. Creates the email routing rule (catch-all OR specific `literal` matchers per address)
+6. Returns the new secret in the response — **you must propagate it to your mail server** (agieth does not touch the mail server)
+
+**Caveat:** If the zone has a disabled catch-all drop rule from a previous setup, `use_catch_all=True` will fail with 2020. Workaround: `use_catch_all=False` + `addresses=[...]` + `delete_existing_drop_rule=True`.
 
 ### Cloudflare Tunnel Hosting (optional — cloudflared not required)
 
