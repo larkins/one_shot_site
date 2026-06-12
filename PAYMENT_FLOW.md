@@ -8,7 +8,9 @@ User/Agent → API Key Generation → Quote Request → ETH Payment → Domain R
 
 ## Default Registrar
 
-**Namecheap** is the default registrar. NameSilo is temporarily disabled due to API issues.
+**Namecheap** is the default registrar. The agieth API defaults all quote/availability/DNS calls to namecheap. NameSilo is retained in the client for backward compatibility (dormant account, no funds) — don't use it for new domains.
+
+To override per-call, pass `registrar=...` explicitly, or set the `REGISTRAR` env var in your `.env` to override the client-wide default (e.g. `REGISTRAR=namecheap`).
 
 ## Flow
 

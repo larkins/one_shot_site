@@ -152,16 +152,16 @@ client.delete_dns_record("example.com", record_id)
 **You must use the correct registrar endpoint for your domain.** After registration, point your domain to Cloudflare nameservers:
 
 ```python
-# For Namecheap domains:
+# For Namecheap domains (default registrar):
 nameservers = ["ns1.cloudflare.com", "ns2.cloudflare.com"]
 client.set_namecheap_nameservers("example.com", nameservers)
 
-# For NameSilo domains:
+# For NameSilo domains (legacy — retained for backward compatibility):
 client.set_namesilo_nameservers("example.com", nameservers)
 
 # Check current nameservers:
-client.get_namecheap_nameservers("example.com")   # Namecheap
-client.get_namesilo_nameservers("example.com")    # NameSilo
+client.get_namecheap_nameservers("example.com")   # Namecheap (default)
+client.get_namesilo_nameservers("example.com")    # NameSilo (legacy)
 ```
 
 > Both `set_*_nameservers` methods send a JSON body: `{"domain": "...", "nameservers": [...]}`

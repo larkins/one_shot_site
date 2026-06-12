@@ -11,7 +11,7 @@ from typing import Optional, Dict, List
 
 # Skill metadata
 SKILL_NAME = "agieth"
-SKILL_VERSION = "1.0.18"
+SKILL_VERSION = "1.0.19"
 
 # Hardcoded production API base — agieth.ai is the product, no configurable alternative
 DEFAULT_BASE_URL = "https://api.agieth.ai"
@@ -55,6 +55,12 @@ class AgiethClient:
             os.getenv("ETH_RPC_PRIMARY", "https://ethereum.publicnode.com"),
             os.getenv("ETH_RPC_FALLBACK", "https://eth.drpc.org"),
         ]
+
+        # Default registrar. Honoured by every helper that takes a
+        # `registrar` kwarg. Override with the REGISTRAR env var in .env
+        # (e.g. REGISTRAR=namecheap). Namecheap is the production registrar;
+        # NameSilo is retained for backward compatibility but is dormant.
+        self.default_registrar = os.getenv("REGISTRAR", "namecheap").strip().lower()
 
     def _headers(self) -> Dict[str, str]:
         """Get authorization headers."""
@@ -137,16 +143,22 @@ class AgiethClient:
 
     # ========== Domains ==========
 
-    def check_availability(self, domain: str, registrar: str = "namesilo") -> Dict:
+    def check_availability(self, domain: str, registrar: str = None) -> Dict:
         """Check domain availability.
 
         Args:
             domain: Domain name to check
-            registrar: Registrar to use (namesilo, godaddy, namecheap)
+            registrar: Registrar to use (namecheap, namesilo, godaddy).
+                       Defaults to the client's ``self.default_registrar``
+                       (which reads the ``REGISTRAR`` env var, falling
+                       back to ``namecheap``). Pass an explicit value to
+                       override per call.
 
         Returns:
             Dict with availability and pricing
         """
+        if registrar is None:
+            registrar = self.default_registrar
         return self._get("/domains/available", params={"domain": domain, "provider": registrar})
 
     def list_domains(self, provider: str = "owned") -> Dict:
@@ -172,14 +184,16 @@ class AgiethClient:
         """
         return self._get(f"/domains/{domain}")
 
-    def create_quote(self, domain: str, years: int = 1, registrar: str = "namecheap",
+    def create_quote(self, domain: str, years: int = 1, registrar: str = None,
                      registrant: Dict = None) -> Dict:
         """Create a quote for domain registration.
 
         Args:
             domain: Domain name
             years: Registration years (1-10)
-            registrar: Registrar (namecheap, namesilo)
+            registrar: Registrar (namecheap, namesilo). Defaults to
+                       ``self.default_registrar`` (from ``REGISTRAR`` env
+                       var, falling back to ``namecheap``).
             registrant: Registrant info dict with:
                 - full_name: Full name
                 - email: Email address
@@ -202,6 +216,8 @@ class AgiethClient:
             Always use the payment_address from the quote response,
             not a hardcoded address.
         """
+        if registrar is None:
+            registrar = self.default_registrar
         data = {
             "domain": domain,
             "years": years,
@@ -265,21 +281,25 @@ class AgiethClient:
 
     # ========== DNS Management ==========
 
-    def list_dns_records(self, domain: str, registrar: str = "namecheap") -> Dict:
+    def list_dns_records(self, domain: str, registrar: str = None) -> Dict:
         """List DNS records for a domain.
 
         Args:
             domain: Domain name
-            registrar: Registrar (namecheap, namesilo)
+            registrar: Registrar (namecheap, namesilo). Defaults to
+                       ``self.default_registrar`` (from ``REGISTRAR`` env
+                       var, falling back to ``namecheap``).
 
         Returns:
             Dict with list of DNS records
         """
+        if registrar is None:
+            registrar = self.default_registrar
         return self._get(f"/api/v1/domains/{domain}/dns", params={"registrar": registrar})
 
     def add_dns_record(self, domain: str, record_type: str, name: str, value: str,
                        ttl: int = 3600, priority: int = None,
-                       registrar: str = "namecheap") -> Dict:
+                       registrar: str = None) -> Dict:
         """Add a DNS record.
 
         Args:
@@ -289,11 +309,15 @@ class AgiethClient:
             value: Record value
             ttl: TTL in seconds
             priority: Priority for MX records
-            registrar: Registrar (namecheap, namesilo)
+            registrar: Registrar (namecheap, namesilo). Defaults to
+                       ``self.default_registrar`` (from ``REGISTRAR`` env
+                       var, falling back to ``namecheap``).
 
         Returns:
             Dict with success status
         """
+        if registrar is None:
+            registrar = self.default_registrar
         params = {
             "registrar": registrar,
             "record_type": record_type,
@@ -343,17 +367,21 @@ class AgiethClient:
         )
 
     def delete_dns_record(self, domain: str, record_id: str,
-                          registrar: str = "namecheap") -> Dict:
+                          registrar: str = None) -> Dict:
         """Delete a DNS record.
 
         Args:
             domain: Domain name
             record_id: Record ID to delete
-            registrar: Registrar (namecheap, namesilo)
+            registrar: Registrar (namecheap, namesilo). Defaults to
+                       ``self.default_registrar`` (from ``REGISTRAR`` env
+                       var, falling back to ``namecheap``).
 
         Returns:
             Dict with success status
         """
+        if registrar is None:
+            registrar = self.default_registrar
         return self._delete(f"/api/v1/domains/{domain}/dns/{record_id}", params={"registrar": registrar})
 
     # ========== Cloudflare ==========

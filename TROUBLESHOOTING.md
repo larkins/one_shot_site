@@ -118,7 +118,7 @@ DNS propagation typically takes 5-60 minutes, sometimes up to 48 hours.
 
 ### "Contact verification link expired"
 
-**Solution:** Request a new verification email from your registrar (Namecheap/NameSilo).
+**Solution:** Request a new verification email from your registrar (Namecheap).
 
 ## Error Codes
 

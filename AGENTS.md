@@ -254,7 +254,7 @@ token = result["tunnel_token"]  # Run: cloudflared tunnel run --token <token>
 
 **Auth:** API key is sent via `Authorization: Bearer` header only (no query params).
 
-**Owned domains listing:** `GET /domains` (no prefix) returns user-owned domains from the agieth DB. This is the default mode. Use `provider=namesilo|godaddy` to get registrar-account listing instead.
+**Owned domains listing:** `GET /domains` (no prefix) returns user-owned domains from the agieth DB. This is the default mode. Use `provider=namesilo|godaddy` to get registrar-account listing instead (legacy — NameSilo account is dormant).
 
 **How payments work:** `send_payment` is optional. You can use any wallet to transfer ETH to the `payment_address` returned in the quote — no private key required by the skill.
 
@@ -351,7 +351,7 @@ if result["status"] == "failed":
 After domain registration, you **MUST** verify your contact information:
 
 1. **Check your email inbox** (the email you registered with)
-2. **Look for "Verify Contact Information" email** from Namecheap/NameSilo
+2. **Look for "Verify Contact Information" email** from Namecheap
 3. **Click the verification link** in the email
 4. **Follow instructions** to verify your contact details
 
@@ -388,10 +388,9 @@ while True:
     time.sleep(30)
 
 # Point registrar nameservers to Cloudflare
-# Use the correct registrar for your domain:
-# Namecheap:
+# Use the correct registrar for your domain (Namecheap is the default):
 client.set_namecheap_nameservers(domain, ["ns1.cloudflare.com", "ns2.cloudflare.com"])
-# NameSilo:
+# Legacy (NameSilo account is dormant — do not use for new domains):
 # client.set_namesilo_nameservers(domain, ["ns1.cloudflare.com", "ns2.cloudflare.com"])
 
 # Set up Cloudflare
